@@ -1,0 +1,23 @@
+{
+  "build": {
+    "core": "gr551x",
+    "cpu": "cortex-m4",
+    "f_cpu": "64000000L",
+    "mcu": "gr5515",
+    "variant": "t1000-a",
+    "ldscript": "gr5515_t1000a.lds",
+    "app_load": "0x0101B000",
+    "app_limit": "0x010C2000",
+    "image_comment": "Tracker-Lr11"
+  },
+  "frameworks": ["arduino"],
+  "name": "Seeed SenseCAP T1000-A (Goodix GR5515)",
+  "upload": {
+    "maximum_ram_size": 245760,
+    "maximum_size": 684032,
+    "protocol": "ble-dfu",
+    "protocols": ["ble-dfu"]
+  },
+  "url": "https://www.seeedstudio.com/SenseCAP-Card-Tracker-T1000-A-p-5697.html",
+  "vendor": "Seeed Studio"
+}
