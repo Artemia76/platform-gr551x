@@ -32,9 +32,17 @@ static int sector_valid(void)
 
 void diag_boot(void)
 {
+    static int done;
+    if (done) return;                 /* idempotent : peut être appelé tôt (trace) puis normalement */
+    done = 1;
     s_reset_wdt = ll_aon_wdt_is_active_flag_reboot() ? 1u : 0u;
     if (s_reset_wdt) ll_aon_wdt_clear_flag_reboot();
     if (!sector_valid()) sector_init();
+}
+
+int diag_last_reset_wdt(void)
+{
+    return (int)s_reset_wdt;
 }
 
 void diag_begin(void)

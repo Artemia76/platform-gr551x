@@ -15,6 +15,7 @@
 extern "C" __attribute__((weak)) void initVariantEarly(void) {}
 extern "C" __attribute__((weak)) void variantPoll(void) {}
 extern "C" __attribute__((weak)) int variantPinInverted(pin_size_t pin) { (void)pin; return 0; }
+extern "C" __attribute__((weak)) void gr551x_boot_step(uint8_t id) { (void)id; }
 extern "C" __attribute__((weak)) void gr551x_reboot(void) { NVIC_SystemReset(); while (1) {} }
 extern "C" __attribute__((weak)) void gr551x_enter_bootloader(void) { gr551x_reboot(); }
 

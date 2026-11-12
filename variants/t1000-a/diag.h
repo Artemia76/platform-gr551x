@@ -19,6 +19,7 @@ void diag_boot(void);                 /* au démarrage : relève la cause du red
 void diag_begin(void);                /* efface le fil d'Ariane et la faute (début d'un essai) */
 void diag_step(uint8_t id);           /* note qu'une étape est atteinte */
 void diag_report(void (*out)(const char *fmt, ...));
+int  diag_last_reset_wdt(void);       /* 1 si le dernier redémarrage vient du chien de garde AON */
 
 #ifdef __cplusplus
 }

@@ -43,15 +43,23 @@ extern "C" int main(void)
 {
   initVariantEarly();             /* variante : init. carte, sécurités de démarrage */
   run_constructors();
+  gr551x_boot_step(GR551X_STEP_CTORS);
   gr551x_ble_begin();
+  gr551x_boot_step(gr551x_ble_init_error() ? GR551X_STEP_BLE_ERR | (gr551x_ble_init_error() & 0xF)
+                                           : GR551X_STEP_BLE_INIT);
   pwr_mgmt_mode_set(PMR_MGMT_ACTIVE_MODE);   /* pas de veille : le compteur DWT (millis) doit tourner */
   app_timer_create(&s_tick, ATIMER_REPEAT, tick_cb);
   app_timer_start(s_tick, 1000, NULL);
+  gr551x_boot_step(GR551X_STEP_TIMER);
   initVariant();
 
+  gr551x_boot_step(GR551X_STEP_SETUP);
   setup();
+  gr551x_boot_step(GR551X_STEP_SETUP_DONE);
+  bool first = true;
   for (;;) {
     loop();
+    if (first) { first = false; gr551x_boot_step(GR551X_STEP_LOOP); }
     gr551x_service();
     pwr_mgmt_schedule();
   }

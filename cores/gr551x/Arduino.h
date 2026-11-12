@@ -32,6 +32,17 @@ void initVariantEarly(void);            /* tout premier appel de main(), avant l
 void variantPoll(void);                 /* à chaque tour de loop() et pendant les attentes */
 int  variantPinInverted(pin_size_t pin);/* 1 si la broche passe par un inverseur sur la carte */
 
+/* Étape de démarrage franchie (la variante peut l'enregistrer de façon persistante). */
+void gr551x_boot_step(uint8_t id);
+#define GR551X_STEP_CTORS      0x41
+#define GR551X_STEP_BLE_INIT   0x42
+#define GR551X_STEP_TIMER      0x43
+#define GR551X_STEP_SETUP      0x44
+#define GR551X_STEP_SETUP_DONE 0x45
+#define GR551X_STEP_LOOP       0x46
+#define GR551X_STEP_BLE_READY  0x47
+#define GR551X_STEP_BLE_ERR    0x50   /* + code d'erreur de ble_stack_init (4 bits) */
+
 /* Redémarrages (la variante remplace les définitions faibles, ex. drapeau DFU du bootloader). */
 void gr551x_reboot(void) __attribute__((noreturn));
 void gr551x_enter_bootloader(void) __attribute__((noreturn));

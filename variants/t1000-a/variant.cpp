@@ -50,9 +50,24 @@ static void ble_evt(const ble_evt_t *evt)
   if (evt->evt_id == BLE_GAPC_EVT_CONNECTED) safety_ble_connected();
 }
 
+/* Fil d'Ariane du démarrage dans le secteur de diagnostic (lisible après coup, ex. par hello « diag »).
+ * Désactivé par défaut : chaque étape écrit en Flash. */
+extern "C" void gr551x_boot_step(uint8_t id)
+{
+#ifdef T1000A_BOOT_TRACE
+  diag_step(id);
+#else
+  (void)id;
+#endif
+}
+
 extern "C" void initVariantEarly(void)
 {
   board_init();
+#ifdef T1000A_BOOT_TRACE
+  diag_boot();
+  diag_step(diag_last_reset_wdt() ? 0x4F : 0x40);    /* début de main() ; 0x4F : après chien de garde */
+#endif
   safety_boot();                  /* peut basculer en DFU après plusieurs démarrages ratés */
   diag_boot();
   gr551x_ble_add_handler(ble_evt);

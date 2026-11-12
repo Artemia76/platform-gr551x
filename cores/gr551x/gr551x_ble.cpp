@@ -14,6 +14,7 @@ static void ble_evt_handler(const ble_evt_t *evt)
 {
   if (evt->evt_id == BLE_COMMON_EVT_STACK_INIT && !s_ready) {
     s_ready = 1;
+    gr551x_boot_step(GR551X_STEP_BLE_READY);
     for (auto cb : s_ready_cbs) if (cb) cb();
   }
   for (auto h : s_handlers) if (h) h(evt);
