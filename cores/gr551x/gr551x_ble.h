@@ -23,6 +23,11 @@ void gr551x_ble_on_ready(void (*cb)(void));
 int  gr551x_ble_ready(void);
 sdk_err_t gr551x_ble_init_error(void);                       /* erreur de ble_stack_init (0 si ok) */
 
+/* Arrêt du BLE (extinction) : arrête les annonces, coupe les connexions ; gr551x_ble_stopped() le signale
+ * aux bibliothèques, qui ne doivent plus relancer d'annonces. */
+void gr551x_ble_stop(void);
+int  gr551x_ble_stopped(void);
+
 /* Interne au cœur */
 void gr551x_ble_begin(void);
 

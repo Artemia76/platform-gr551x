@@ -25,3 +25,5 @@ public:
 };
 
 extern DebugSerial Serial;
+
+#include "Uart.h"

@@ -27,7 +27,10 @@
 #define PIN_LORA_IRQ        0x21          /* AON1 ; ligne inversée sur la carte (voir variantPinInverted) */
 #define PIN_LORA_RF_EN      14            /* = PIN_BATTERY_EN ; mis à 1 par hello avant la radio (rôle exact à confirmer) */
 
-/* GNSS AG3335 : UART1 115200 bauds */
+/* GNSS AG3335 : UART1 115200 bauds (Serial1) */
+#define PIN_SERIAL1_TX      30
+#define PIN_SERIAL1_RX      26
+#define PIN_SERIAL1_MUX     1             /* APP_IO_MUX_1 : UART1 sur GPIO26/30 (relevé dans le firmware Seeed) */
 #define PIN_GNSS_TX         30
 #define PIN_GNSS_RX         26
 #define PIN_GNSS_EN         28

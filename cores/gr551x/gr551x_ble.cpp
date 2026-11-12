@@ -48,3 +48,14 @@ extern "C" void gr551x_ble_begin(void)
 {
   s_init_err = ble_stack_init(ble_evt_handler, &heaps_table);
 }
+
+static volatile int s_stopped;
+
+extern "C" void gr551x_ble_stop(void)
+{
+  s_stopped = 1;
+  ble_gap_adv_stop(0);
+  for (uint8_t i = 0; i < CFG_MAX_CONNECTIONS; i++) ble_gap_disconnect(i);
+}
+
+extern "C" int gr551x_ble_stopped(void) { return s_stopped; }

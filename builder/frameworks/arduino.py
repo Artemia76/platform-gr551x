@@ -58,6 +58,8 @@ SDK_SRC = [
     "drivers/src/app_spi.c",
     "drivers/src/app_dma.c",
     "drivers/src/app_adc.c",
+    "drivers/src/app_uart.c",
+    "components/libraries/ring_buffer/ring_buffer.c",
     "components/libraries/utility/utility.c",
     "components/libraries/pmu_calibration/pmu_calibration.c",
     "components/libraries/app_timer/app_timer.c",
