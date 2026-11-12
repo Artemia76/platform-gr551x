@@ -38,7 +38,9 @@ env.Append(
             suffix=".bin",
         ),
         DfuImage=Builder(
-            action=env.VerboseAction(
+            action=[env.VerboseAction(
+                '"$PYTHONEXE" -I "%s" "${SOURCES[1]}"' % join(TOOLS, "check_handlers.py"),
+                "Checking exception handlers"), env.VerboseAction(
                 '"$PYTHONEXE" -I "%s" "${SOURCES[0]}" "$TARGET" --load %s --limit %s --comment "%s" '
                 '--check-elf "${SOURCES[1]}"'
                 % (
@@ -48,7 +50,7 @@ env.Append(
                     board.get("build.image_comment", "GR551x"),
                 ),
                 "Building DFU image $TARGET",
-            ),
+            )],
         ),
     )
 )
@@ -62,7 +64,7 @@ if env.get("PROGNAME", "program") == "program":
 target_elf = env.BuildProgram()
 target_bin = env.ElfToBin(join("$BUILD_DIR", "${PROGNAME}"), target_elf)
 target_dfu = env.DfuImage(join("$BUILD_DIR", "${PROGNAME}_dfu.bin"), [target_bin, target_elf])
-env.Depends(target_dfu, join(TOOLS, "mkimage.py"))
+env.Depends(target_dfu, [join(TOOLS, "mkimage.py"), join(TOOLS, "check_handlers.py")])
 
 AlwaysBuild(env.Alias("nobuild", target_dfu))
 target_buildprog = env.Alias("buildprog", target_dfu, target_dfu)

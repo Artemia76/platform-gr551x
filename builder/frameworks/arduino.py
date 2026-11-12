@@ -51,7 +51,6 @@ SDK_SRC = [
     "platform/soc/common/gr_interrupt.c",
     "platform/soc/common/gr_platform.c",
     "platform/soc/src/gr_soc.c",
-    "platform/arch/arm/cortex-m/gcc/startup_gr55xx.s",
     "drivers/src/app_io.c",
     "drivers/src/app_gpiote.c",
     "drivers/src/app_pwr_mgmt.c",
@@ -113,6 +112,7 @@ env.Append(
 )
 
 env.Replace(LDSCRIPT_PATH=join(VARIANT, board.get("build.ldscript")))
+env.Depends("$BUILD_DIR/${PROGNAME}.elf", "$LDSCRIPT_PATH")      # relier à nouveau si le script change
 
 env.Prepend(_LIBFLAGS="-Wl,--start-group ")
 env.Append(_LIBFLAGS=" -Wl,--end-group")
@@ -121,6 +121,16 @@ env.Append(_LIBFLAGS=" -Wl,--end-group")
 env.BuildSources(join("$BUILD_DIR", "FrameworkSDK"), SDK, src_filter=["-<*>"] + ["+<%s>" % s for s in SDK_SRC])
 env.BuildSources(join("$BUILD_DIR", "FrameworkArduino"), CORE)
 env.BuildSources(join("$BUILD_DIR", "FrameworkArduinoVariant"), VARIANT)
+
+# Code de démarrage EN DERNIER : il déclare chaque gestionnaire d'exception comme alias faible de
+# Default_Handler (boucle infinie), et gr_interrupt.c définit les vrais gestionnaires… eux aussi en faible.
+# Entre deux définitions faibles, l'éditeur de liens garde la première rencontrée : si le démarrage passe
+# avant gr_interrupt.o, SVC_Handler reste une boucle infinie et la pile BLE (correctifs ROM appliqués par
+# FPB + SVC) se bloque dans ble_stack_init(). Voir aussi tools/check_handlers.py.
+env.Append(PIOBUILDFILES=env.Object(
+    join("$BUILD_DIR", "FrameworkSDK", "startup_gr55xx.o"),
+    join(SDK, "platform", "arch", "arm", "cortex-m", "gcc", "startup_gr55xx.s"),
+))
 
 # Bibliothèques fournies avec la plateforme (SPI, …)
 env.Append(LIBSOURCE_DIRS=[join(PLAT, "libraries")])

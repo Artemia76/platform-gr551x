@@ -75,9 +75,12 @@ SECTIONS
         __data_end__ = .;
     } > RAM
 
-    .my_section : 
+    /* Table de correctifs FPB de la ROM (patch_value) : alignée sur 128 octets comme dans le script Keil
+     * de Goodix (flash_scatter_common.sct, AlignExpr(+0, 128)). Le script GCC du SDK n'aligne que sur
+     * 32 octets : avec une table à 0x...20, ble_stack_init() ne rend jamais la main (essai blink-0.1). */
+    .my_section :
     {
-        . = ALIGN(32);
+        . = ALIGN(128);
         *(FPB*)
     } > RAM
 
