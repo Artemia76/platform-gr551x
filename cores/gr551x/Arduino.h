@@ -45,6 +45,9 @@ void initVariantEarly(void);            /* tout premier appel de main(), avant l
 void variantPoll(void);                 /* à chaque tour de loop() et pendant les attentes */
 int  variantPinInverted(pin_size_t pin);/* 1 si la broche passe par un inverseur sur la carte */
 
+/* Tension en mV sur une broche MSIO (0x30+n), ADC du GR551x étalonné ; -1 si broche invalide ou erreur. */
+int analogReadMilliVolts(pin_size_t pin);
+
 /* Étape de démarrage franchie (la variante peut l'enregistrer de façon persistante). */
 void gr551x_boot_step(uint8_t id);
 #define GR551X_STEP_CTORS      0x41

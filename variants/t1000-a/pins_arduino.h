@@ -25,7 +25,7 @@
 #define PIN_LORA_RESET      12
 #define PIN_LORA_BUSY       13
 #define PIN_LORA_IRQ        0x21          /* AON1 ; ligne inversée sur la carte (voir variantPinInverted) */
-#define PIN_LORA_RF_EN      14            /* à mettre à l'état haut avant d'initialiser la radio */
+#define PIN_LORA_RF_EN      14            /* = PIN_BATTERY_EN ; mis à 1 par hello avant la radio (rôle exact à confirmer) */
 
 /* GNSS AG3335 : UART1 115200 bauds */
 #define PIN_GNSS_TX         30
@@ -36,6 +36,11 @@
 #define PIN_GNSS_SLEEP      29
 #define PIN_GNSS_RTC_INT    24
 #define PIN_GNSS_RESETB     25
+
+/* Batterie : MSIO4, pont diviseur par 2, activé par GPIO14 (relevé dans le firmware Seeed, 0x01028DDC) */
+#define PIN_BATTERY         0x34
+#define PIN_BATTERY_EN      14
+#define BATTERY_DIVIDER     2
 
 /* I2C (capteurs) */
 #define PIN_WIRE_SCL        8
