@@ -65,6 +65,6 @@ bootloader:
 
 ## Licenses
 
-- Platform code: MIT.
+- Platform code: MIT (see `LICENSE`).
 - `cores/gr551x/api/`: LGPL-2.1 (ArduinoCore-API).
 - Goodix GR551x SDK (installed as the `framework-gr551x-sdk` package): BSD-3-Clause, © Goodix.
