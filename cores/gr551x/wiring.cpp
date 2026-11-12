@@ -21,6 +21,9 @@ extern "C" __attribute__((weak)) void gr551x_enter_bootloader(void) { gr551x_reb
 
 /* ------------------------------------------------------------------ broches */
 
+extern "C" volatile uint32_t gr551x_no_port_reg;
+volatile uint32_t gr551x_no_port_reg;
+
 bool gr551x_pin_decode(pin_size_t n, app_io_type_t *type, uint32_t *mask)
 {
   if (n < 32)                 { *type = APP_IO_TYPE_NORMAL; *mask = 1u << n; return true; }

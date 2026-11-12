@@ -8,7 +8,7 @@
 #include "Arduino.h"
 #include "api/HardwareSPI.h"
 
-class SPIClass : public arduino::HardwareSPI {
+class GR551xSPI : public arduino::HardwareSPI {
 public:
   uint8_t transfer(uint8_t data) override;
   uint16_t transfer16(uint16_t data) override;
@@ -35,4 +35,4 @@ private:
   int err = 0;
 };
 
-extern SPIClass SPI;
+extern GR551xSPI SPI;

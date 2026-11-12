@@ -5,11 +5,11 @@ extern "C" {
 #include "app_spi.h"
 }
 
-SPIClass SPI;
+GR551xSPI SPI;
 
 static void spi_evt(app_spi_evt_t *e) { (void)e; }
 
-void SPIClass::configure(uint32_t clock, arduino::SPIMode mode)
+void GR551xSPI::configure(uint32_t clock, arduino::SPIMode mode)
 {
   if (ready) app_spi_deinit(APP_SPI_ID_MASTER);
   ready = false;
@@ -37,39 +37,39 @@ void SPIClass::configure(uint32_t clock, arduino::SPIMode mode)
   cur_mode = mode;
 }
 
-void SPIClass::begin()
+void GR551xSPI::begin()
 {
   if (!ready) configure(cur_clock ? cur_clock : SPI_DEFAULT_HZ, cur_mode);
 }
 
-void SPIClass::end()
+void GR551xSPI::end()
 {
   if (ready) app_spi_deinit(APP_SPI_ID_MASTER);
   ready = false;
 }
 
-void SPIClass::beginTransaction(arduino::SPISettings s)
+void GR551xSPI::beginTransaction(arduino::SPISettings s)
 {
   uint32_t clock = s.getClockFreq();
   if (clock > SPI_DEFAULT_HZ) clock = SPI_DEFAULT_HZ;   /* SPIM du GR551x : on reste à la fréquence validée */
   if (!ready || clock != cur_clock || s.getDataMode() != cur_mode) configure(clock, s.getDataMode());
 }
 
-void SPIClass::transfer(const void *tx, void *rx, size_t count)
+void GR551xSPI::transfer(const void *tx, void *rx, size_t count)
 {
   if (!ready || !count) return;
   uint16_t e = app_spi_transmit_receive_sync(APP_SPI_ID_MASTER, (uint8_t *)tx, (uint8_t *)rx, (uint32_t)count, 100);
   if (e != APP_DRV_SUCCESS && !err) err = e;
 }
 
-uint8_t SPIClass::transfer(uint8_t data)
+uint8_t GR551xSPI::transfer(uint8_t data)
 {
   uint8_t in = 0;
   transfer(&data, &in, 1);
   return in;
 }
 
-uint16_t SPIClass::transfer16(uint16_t data)
+uint16_t GR551xSPI::transfer16(uint16_t data)
 {
   uint8_t out[2] = { (uint8_t)(data >> 8), (uint8_t)data };
   uint8_t in[2] = { 0, 0 };
@@ -77,7 +77,7 @@ uint16_t SPIClass::transfer16(uint16_t data)
   return (uint16_t)((in[0] << 8) | in[1]);
 }
 
-void SPIClass::transfer(void *buf, size_t count)
+void GR551xSPI::transfer(void *buf, size_t count)
 {
   transfer(buf, buf, count);
 }
