@@ -48,6 +48,11 @@ int  variantPinInverted(pin_size_t pin);/* 1 si la broche passe par un inverseur
 /* Tension en mV sur une broche MSIO (0x30+n), ADC du GR551x étalonné ; -1 si broche invalide ou erreur. */
 int analogReadMilliVolts(pin_size_t pin);
 
+/* Veille légère : demande de dormir (WFI) à la fin du tour de loop() en cours, jusqu'à la prochaine
+ * interruption (réveil au plus tard par le minuteur d'une seconde du cœur). Ignorée si une interruption
+ * est arrivée pendant le tour de boucle. */
+void gr551x_idle_request(void);
+
 /* Étape de démarrage franchie (la variante peut l'enregistrer de façon persistante). */
 void gr551x_boot_step(uint8_t id);
 #define GR551X_STEP_CTORS      0x41

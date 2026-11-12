@@ -14,6 +14,7 @@ extern "C" {
 #include "app_pwr_mgmt.h"
 #include "hal_flash.h"
 #include "gr55xx_delay.h"
+#include "gr55xx_ll_calendar.h"
 
 #ifdef __cplusplus
 }

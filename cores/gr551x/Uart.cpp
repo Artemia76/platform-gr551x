@@ -1,5 +1,6 @@
 #include "Arduino.h"
 #include "gr551x_sdk.h"
+#include "gr551x_internal.h"
 
 extern "C" {
 #include "app_uart.h"
@@ -12,6 +13,7 @@ static uint8_t s_txbuf[2][256];
 static void uart_evt(uint8_t id, app_uart_evt_t *e)
 {
   GR551xUart *u = s_uart[id];
+  gr551x_wake_events++;
   if (!u) return;
   if (e->type == APP_UART_EVT_RX_DATA) {
     u->onRxChunk(e->data.size);

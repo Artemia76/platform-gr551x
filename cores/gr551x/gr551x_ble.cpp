@@ -1,5 +1,6 @@
 #include "Arduino.h"
 #include "gr551x_ble.h"
+#include "gr551x_internal.h"
 
 extern "C" {
 STACK_HEAP_INIT(heaps_table);
@@ -12,6 +13,7 @@ static sdk_err_t s_init_err;
 
 static void ble_evt_handler(const ble_evt_t *evt)
 {
+  gr551x_wake_events++;
   if (evt->evt_id == BLE_COMMON_EVT_STACK_INIT && !s_ready) {
     s_ready = 1;
     gr551x_boot_step(GR551X_STEP_BLE_READY);

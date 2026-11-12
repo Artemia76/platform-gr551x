@@ -21,6 +21,7 @@ extern "C" __attribute__((weak)) void gr551x_enter_bootloader(void) { gr551x_reb
 
 /* ------------------------------------------------------------------ broches */
 
+volatile uint32_t gr551x_wake_events;
 extern "C" volatile uint32_t gr551x_no_port_reg;
 volatile uint32_t gr551x_no_port_reg;
 
@@ -92,6 +93,7 @@ static int irq_index(app_io_type_t t, uint32_t mask)
 
 static void io_evt(app_io_evt_t *e)
 {
+  gr551x_wake_events++;
   uint32_t pins = e->pin;
   while (pins) {
     uint32_t m = pins & (~pins + 1);
@@ -160,6 +162,53 @@ void detachInterrupt(pin_size_t pin)
 
 /* ------------------------------------------------------------------ temps */
 
+/* Base de temps : compteur du calendrier AON (quartz 32 768 Hz), qui continue de compter quand le cœur
+ * dort, étendu à 64 bits (lu au moins toutes les secondes par le minuteur de main.cpp).
+ * TIMER_VAL est partagé entre plusieurs compteurs AON (sélection par AON_PAD_CTL1.TIMER_READ_SEL, aussi
+ * utilisée par la pile BLE) : sélection et lecture en section critique, sélection d'origine restaurée. */
+static uint32_t s_cal_last;
+static uint64_t s_cal_total;
+static bool s_cal_on;
+
+static uint32_t cal_read(void)
+{
+  uint32_t sel = AON->AON_PAD_CTL1;
+  AON->AON_PAD_CTL1 = (sel & ~AON_PAD_CTL1_TIMER_READ_SEL) | AON_PAD_CTL1_TIMER_READ_SEL_CAL_TIMER;
+  uint32_t v = AON->TIMER_VAL;
+  AON->AON_PAD_CTL1 = sel;
+  return v;
+}
+
+extern "C" uint64_t gr551x_ticks32k(void)
+{
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
+  if (!s_cal_on) {
+    if (!(AON->CALENDAR_TIMER_CTL & AON_CALENDAR_TIMER_CTL_EN)) {
+      ll_calendar_set_clock_div(LL_CALENDAR_DIV_NONE);
+      ll_calendar_enable();
+    }
+    /* juste après l'activation, la valeur lue peut être transitoire : on attend deux lectures cohérentes */
+    uint32_t a = cal_read(), b = cal_read();
+    for (int i = 0; i < 1000 && (uint32_t)(b - a) > 2u; i++) { a = b; b = cal_read(); }
+    s_cal_last = b;
+    s_cal_on = true;
+  }
+  uint32_t now = cal_read();
+  uint32_t delta = now - s_cal_last;
+  if (delta < 0x80000000u) {          /* ignore tout recul (lecture transitoire) */
+    s_cal_total += delta;
+    s_cal_last = now;
+  }
+  uint64_t t = s_cal_total;
+  __set_PRIMASK(primask);
+  return t;
+}
+
+unsigned long millis(void) { return (unsigned long)((gr551x_ticks32k() * 1000u) >> 15); }
+unsigned long micros(void) { return (unsigned long)((gr551x_ticks32k() * 15625u) >> 9); }
+
+/* Attentes courtes : compteur de cycles DWT (le cœur reste éveillé pendant l'attente). */
 static uint32_t s_cyc_last;
 static uint64_t s_cyc_total;
 static bool s_dwt_on;
@@ -188,13 +237,10 @@ uint64_t gr551x_cycles(void)
   return t;
 }
 
-unsigned long micros(void) { return (unsigned long)(gr551x_cycles() / (SystemCoreClock / 1000000u)); }
-unsigned long millis(void) { return (unsigned long)(gr551x_cycles() / (SystemCoreClock / 1000u)); }
-
 void delay(unsigned long ms)
 {
-  uint64_t end = gr551x_cycles() + (uint64_t)ms * (SystemCoreClock / 1000u);
-  while (gr551x_cycles() < end) gr551x_service();
+  unsigned long start = millis();
+  while (millis() - start < ms) gr551x_service();
 }
 
 void delayMicroseconds(unsigned int us)
@@ -210,8 +256,8 @@ extern "C" void gr551x_service(void)
 {
   static uint64_t last;
   static bool busy;
-  uint64_t now = gr551x_cycles();
-  if (busy || now - last < (uint64_t)SystemCoreClock / 100u) return;
+  uint64_t now = gr551x_ticks32k();
+  if (busy || now - last < 328u) return;   /* ≈ 10 ms */
   busy = true;
   last = now;
   variantPoll();
