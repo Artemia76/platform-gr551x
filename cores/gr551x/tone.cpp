@@ -57,6 +57,7 @@ void tone(uint8_t pin, unsigned int frequency, unsigned long duration)
   if (!p) return;
   s_last_use = millis();
   if (frequency == 0) { noTone(pin); return; }
+  if (frequency > 20000) return;      /* hors audio (ex. note RTTTL hors tableau) : ignoré */
 
   ToneState &s = s_tone[p->id];
   if (s.pin != pin) {
