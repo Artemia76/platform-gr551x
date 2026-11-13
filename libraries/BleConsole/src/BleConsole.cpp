@@ -119,7 +119,8 @@ static void exec_line(char *line, BleConsoleClass::CommandHandler handler)
   if (!strcmp(argv[0], "help")) {
     BleConsole.print("commandes : help, info, reboot, dfu (+ commandes de l'application ; les autres lignes vont a Serial quand l'application le lit)\r\n");
   } else if (!strcmp(argv[0], "info")) {
-    BleConsole.printf("%s %s  uptime=%lus  ble_err=0x%04x\r\n", s_name, s_version, millis() / 1000, s_err);
+    BleConsole.printf("%s %s  uptime=%lus  ble_err=0x%04x  serial_lu=%s\r\n", s_name, s_version, millis() / 1000, s_err,
+                      gr551x_debug_reader_active() ? "oui" : "non");
   } else if (!strcmp(argv[0], "reboot")) {
     BleConsole.print("redemarrage...\r\n");
     delay(200);
@@ -134,7 +135,7 @@ static void exec_line(char *line, BleConsoleClass::CommandHandler handler)
     raw[n++] = '\r';
     gr551x_debug_feed((const uint8_t *)raw, n);
   } else {
-    BleConsole.print("commande inconnue (help)\r\n");
+    BleConsole.print("commande inconnue (help) ; Serial n'est pas lu par l'application\r\n");
   }
 }
 
