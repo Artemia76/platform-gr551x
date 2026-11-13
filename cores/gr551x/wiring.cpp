@@ -261,6 +261,7 @@ extern "C" void gr551x_service(void)
   busy = true;
   last = now;
   variantPoll();
+  gr551x_tone_poll();
   busy = false;
 }
 
@@ -281,5 +282,3 @@ void randomSeed(unsigned long seed) { if (seed) srand(seed); }
 long random(long howbig) { return howbig ? rand() % howbig : 0; }
 long random(long lo, long hi) { return hi > lo ? lo + random(hi - lo) : lo; }
 
-void tone(uint8_t pin, unsigned int frequency, unsigned long duration) { (void)pin; (void)frequency; (void)duration; }
-void noTone(uint8_t pin) { (void)pin; }

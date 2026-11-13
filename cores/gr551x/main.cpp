@@ -70,7 +70,7 @@ extern "C" int main(void)
     gr551x_service();
     if (s_idle_req) {
       s_idle_req = false;
-      if (ev == gr551x_wake_events) {           /* rien n'est arrivé pendant le tour : on peut dormir */
+      if (ev == gr551x_wake_events && !gr551x_tone_busy()) {           /* rien n'est arrivé pendant le tour : on peut dormir */
         pwr_mgmt_mode_set(PMR_MGMT_IDLE_MODE);
         pwr_mgmt_schedule();
         pwr_mgmt_mode_set(PMR_MGMT_ACTIVE_MODE);
