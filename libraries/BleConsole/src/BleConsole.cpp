@@ -51,19 +51,32 @@ static void tx_kick(void)
   if (gus_tx_data_send((uint8_t)s_conn_idx, chunk, n) != SDK_SUCCESS) s_tx_inflight = 0;
 }
 
+/* Hors interruption, une sortie plus longue que le tampon (ex. « cat » de la CLI de secours, en hexadécimal)
+ * attend que les notifications partent (événements BLE sous interruption BLE_SDK_IRQn), 1 s au plus sans
+ * progrès. Depuis une interruption ou en section critique : tronquée, comme avant. */
 size_t BleConsoleClass::write(const uint8_t *buf, size_t n)
 {
   if (s_conn_idx < 0 || !s_tx_open) return n;            /* personne n'écoute : on jette */
-  uint32_t primask = __get_PRIMASK();
-  __disable_irq();
-  for (size_t i = 0; i < n; i++) {
-    uint32_t next = (s_tx_head + 1) % TX_BUF_SIZE;
-    if (next == s_tx_tail) break;                        /* plein : on tronque */
-    s_tx_buf[s_tx_head] = buf[i];
-    s_tx_head = next;
+  bool can_wait = __get_IPSR() == 0 && __get_PRIMASK() == 0;
+  size_t i = 0;
+  uint32_t last_progress = millis();
+  while (i < n) {
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    size_t before = i;
+    for (; i < n; i++) {
+      uint32_t next = (s_tx_head + 1) % TX_BUF_SIZE;
+      if (next == s_tx_tail) break;                      /* plein */
+      s_tx_buf[s_tx_head] = buf[i];
+      s_tx_head = next;
+    }
+    __set_PRIMASK(primask);
+    tx_kick();
+    if (i == n || !can_wait || s_conn_idx < 0 || !s_tx_open) break;
+    if (i != before) last_progress = millis();
+    else if (millis() - last_progress > 1000) break;     /* le client ne lit plus : on tronque */
+    gr551x_service();                                     /* chien de garde */
   }
-  __set_PRIMASK(primask);
-  tx_kick();
   return n;
 }
 
