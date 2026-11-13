@@ -28,7 +28,7 @@
     "framework-gr551x-sdk": {
       "type": "framework",
       "optional": true,
-      "version": "https://github.com/Artemia76/GR551x.SDK.git#platformio"
+      "version": "https://github.com/Artemia76/GR551x.SDK.git#b1bb11f5cc65fc0504a273141eb8231b6e75b2b0"
     }
   }
 }

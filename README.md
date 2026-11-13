@@ -3,13 +3,16 @@
 PlatformIO platform for the **Goodix GR551x** Bluetooth LE SoC (Cortex-M4F), with an Arduino core built on the
 Goodix GR551x SDK. First board: **Seeed SenseCAP T1000-A** (GR5515 + Semtech LR1110 + Airoha AG3335).
 
-Status: experimental. Built for running [MeshCore](https://github.com/meshcore-dev/MeshCore) on the T1000-A.
+Status: experimental, community-maintained (not supported by Goodix or PlatformIO). Built for running
+[MeshCore](https://github.com/meshcore-dev/MeshCore) on the T1000-A
+(fork: [Artemia76/MeshCore](https://github.com/Artemia76/MeshCore), branch `feature/t1000a-gr5515`).
+Only the subset of the Arduino API that MeshCore needs is implemented. See `CHANGELOG.md`.
 
 ## Usage
 
 ```ini
 [env:t1000-a]
-platform = https://github.com/Artemia76/platform-gr551x.git
+platform = https://github.com/Artemia76/platform-gr551x.git#v0.1.0
 board = t1000-a
 framework = arduino
 ```
@@ -37,8 +40,10 @@ framework = arduino
 
 - **Startup**: the SDK startup code does not run `.init_array`, and puts `system_platform_init` in it. The core's
   `main()` runs the C++ constructors itself and skips that entry.
-- **Time**: `millis()`/`micros()` use the DWT cycle counter. This counter stops while the CPU sleeps, so the core
-  keeps the SoC in active mode for now.
+- **Time**: `millis()`/`micros()` read the AON calendar counter (32 768 Hz), which keeps running in sleep. The DWT
+  cycle counter is only used for short busy waits (`delayMicroseconds()`).
+- **Sleep**: `gr551x_idle_request()` puts the CPU in IDLE (WFI) at the end of a `loop()` pass, unless an interrupt
+  (pin, BLE, UART, 1 s timer, button) arrived during that pass.
 - **Pins**: 0–31 GPIO, `0x20 + n` AON n, `0x30 + n` MSIO n (the numbering used by Seeed's firmware).
 - **BLE**: the ROM stack is started before `setup()`. Libraries subscribe with `gr551x_ble_add_handler()` and
   add their GATT services from `gr551x_ble_on_ready()`.
