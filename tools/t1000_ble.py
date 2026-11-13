@@ -5,7 +5,9 @@ Sous-commandes :
   scan [-t s]                    liste les appareils BLE visibles (nom, adresse, RSSI)
   gatt [--name N] [-t s]         attend l'appareil (fenêtre courte après appui long), s'y connecte
                                  immédiatement et liste services / caractéristiques
-  flash FICHIER [--name N]       DFU Goodix vers le bootloader (SENSECAP_GR_DFU_xxxx)
+  flash FICHIER [--name N]       DFU Goodix vers le bootloader (SENSECAP_GR_DFU_xxxx) ; le firmware doit
+                                 d'abord passer les tests du jumeau numérique (tools/sim), sinon refus
+                                 (--skip-twin pour forcer)
   at CMD… [--name N]             envoie des commandes AT au firmware Seeed (UART transparent BLE)
   console [--name N]             console texte du firmware de test (service GUS)
 
@@ -14,7 +16,7 @@ Exemples :
   t1000_ble.py flash firmware/hello/build/t1000a_hello_dfu.bin
 """
 import re
-import argparse, asyncio, struct, sys, time
+import argparse, asyncio, os, struct, subprocess, sys, time
 from bleak import BleakClient, BleakScanner
 from bleak.exc import BleakError
 
@@ -345,6 +347,50 @@ async def fast_flash(c, a, img, tail):
     print('WRITE_BOOT envoyé : le boîtier redémarre sur le nouveau firmware')
 
 
+def find_twin():
+    """Dossier du jumeau numérique : $T1000_TWIN_DIR, ou tools/sim du dépôt T1000A (outil copié ou non)."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    for d in (os.environ.get('T1000_TWIN_DIR'), os.path.join(here, 'sim'), os.path.join(here, '..', '..', 'tools', 'sim')):
+        if d and os.path.exists(os.path.join(d, 'tests', 'conftest.py')):
+            return os.path.abspath(d)
+    return None
+
+
+def twin_python():
+    """Interpréteur capable de faire tourner le jumeau (unicorn, pyelftools, pytest)."""
+    cands = [os.environ.get('T1000_TWIN_PYTHON'), sys.executable]
+    for py in cands:
+        if py and subprocess.run([py, '-c', 'import unicorn, elftools, pytest'], capture_output=True).returncode == 0:
+            return py
+    return None
+
+
+def twin_gate(a):
+    """Garde-fou : le firmware n'est flashé que s'il passe la suite de tests du jumeau numérique."""
+    if a.skip_twin:
+        print('ATTENTION : validation par le jumeau numérique sautée (--skip-twin)')
+        return
+    base = a.file[:-len('_dfu.bin')] if a.file.endswith('_dfu.bin') else os.path.splitext(a.file)[0]
+    elf = base + '.elf'
+    refuse = lambda why: sys.exit(f'flash refusé : {why}\n(--skip-twin pour flasher sans validation)')
+    if not os.path.exists(elf):
+        refuse(f'ELF introuvable à côté de l\'image ({elf}) : le jumeau ne peut pas valider ce firmware')
+    sim = find_twin()
+    if not sim:
+        refuse('jumeau numérique introuvable (définir T1000_TWIN_DIR=…/tools/sim)')
+    py = twin_python()
+    if not py:
+        refuse('aucun Python avec unicorn, pyelftools et pytest (pip install -r tools/sim/requirements.txt, '
+               'ou T1000_TWIN_PYTHON=…)')
+    print(f'Validation de {os.path.basename(elf)} par le jumeau numérique ({sim})…', flush=True)
+    t0 = time.time()
+    r = subprocess.run([py, '-m', 'pytest', '-q', '-p', 'no:cacheprovider', os.path.join(sim, 'tests'),
+                        '--firmware', os.path.abspath(elf)], cwd=sim)
+    if r.returncode != 0:
+        refuse(f'le firmware échoue aux tests du jumeau (code {r.returncode})')
+    print(f'Jumeau : firmware validé en {time.time() - t0:.0f} s', flush=True)
+
+
 async def cmd_flash(a):
     img = open(a.file, 'rb').read()
     tail = img[-48:]
@@ -355,6 +401,8 @@ async def cmd_flash(a):
         sys.exit(f'adresse de chargement {load:#x} ≠ {APP_LOAD_ADDR:#x} : refus (protège le bootloader)')
     img_info = tail[:40]          # dfu_image_info_t : pattern, version, boot_info (24), comments (12)
     print(f'image : {len(img)} octets, commentaire « {tail[28:40].split(bytes(1))[0].decode()} »')
+    if not a.dry_run:
+        twin_gate(a)
 
     app_addr = None
     if a.enter_dfu:
@@ -596,6 +644,8 @@ def main():
     p.add_argument('-t', type=float, default=180)
     p.add_argument('--dry-run', action='store_true', help='interroge le bootloader sans rien écrire')
     p.add_argument('--retries', type=int, default=3, help='tentatives en cas de coupure BLE (défaut 3)')
+    p.add_argument('--skip-twin', action='store_true',
+                   help='flasher sans la validation préalable par le jumeau numérique (déconseillé)')
     p.add_argument('--enter-dfu', metavar='NOM', help='passer d\'abord l\'appareil NOM en DFU (AT+DFU_ENTER pour Seeed, « dfu » pour nos firmwares)')
     p = sub.add_parser('at'); p.add_argument('cmds', nargs='+'); p.add_argument('--name', default='T1000')
     p.add_argument('-t', type=float, default=180)

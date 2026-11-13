@@ -77,6 +77,8 @@ upload_cmd = '"$PYTHONEXE" "%s" flash "$SOURCE"' % join(TOOLS, "t1000_ble.py")
 enter = env.GetProjectOption("custom_upload_enter_dfu", "")
 if enter:
     upload_cmd += ' --enter-dfu "%s"' % enter
+if env.GetProjectOption("custom_upload_skip_twin", "").lower() in ("1", "yes", "true", "on"):
+    upload_cmd += ' --skip-twin'
 env.Replace(UPLOADCMD=upload_cmd)
 upload_actions = [env.VerboseAction("$UPLOADCMD", "Uploading $SOURCE over BLE DFU")]
 env.AddPlatformTarget("upload", target_dfu, upload_actions, "Upload")
