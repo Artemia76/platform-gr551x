@@ -94,6 +94,9 @@ static void rx_bytes(const uint8_t *p, uint16_t len)
 
 static void exec_line(char *line, BleConsoleClass::CommandHandler handler)
 {
+  char raw[RX_LINE_MAX + 2];
+  strncpy(raw, line, RX_LINE_MAX);
+  raw[RX_LINE_MAX] = 0;
   char *argv[10] = {0};
   int argc = 0;
   for (char *tok = strtok(line, " "); tok && argc < 10; tok = strtok(NULL, " ")) argv[argc++] = tok;
@@ -101,7 +104,7 @@ static void exec_line(char *line, BleConsoleClass::CommandHandler handler)
 
   if (handler && handler(argc, argv)) return;
   if (!strcmp(argv[0], "help")) {
-    BleConsole.print("commandes : help, info, reboot, dfu (+ commandes de l'application)\r\n");
+    BleConsole.print("commandes : help, info, reboot, dfu (+ commandes de l'application ; les autres lignes vont a Serial quand l'application le lit)\r\n");
   } else if (!strcmp(argv[0], "info")) {
     BleConsole.printf("%s %s  uptime=%lus  ble_err=0x%04x\r\n", s_name, s_version, millis() / 1000, s_err);
   } else if (!strcmp(argv[0], "reboot")) {
@@ -112,6 +115,11 @@ static void exec_line(char *line, BleConsoleClass::CommandHandler handler)
     BleConsole.print("passage en DFU...\r\n");
     delay(200);
     gr551x_enter_bootloader();
+  } else if (gr551x_debug_reader_active()) {
+    /* l'application lit Serial (ex. CLI de secours MeshCore) : la ligne lui revient, fin de ligne « \r » */
+    size_t n = strlen(raw);
+    raw[n++] = '\r';
+    gr551x_debug_feed((const uint8_t *)raw, n);
   } else {
     BleConsole.print("commande inconnue (help)\r\n");
   }
