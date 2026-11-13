@@ -42,7 +42,23 @@ static void tick_cb(void *ctx)
 static volatile bool s_idle_req;
 extern "C" void gr551x_idle_request(void) { s_idle_req = true; }
 
+static uint32_t s_awake_until;
+static bool s_awake;
+extern "C" void gr551x_stay_awake(uint32_t ms)
+{
+  uint32_t until = millis() + ms;
+  if (!s_awake || (int32_t)(until - s_awake_until) > 0) s_awake_until = until;
+  s_awake = true;
+}
+
+static bool must_stay_awake(void)
+{
+  if (s_awake && (int32_t)(millis() - s_awake_until) >= 0) s_awake = false;
+  return s_awake || gr551x_tone_busy();
+}
+
 __attribute__((weak)) void initVariant(void) {}
+__attribute__((weak)) void variantPostSetup(void) {}
 
 extern "C" int main(void)
 {
@@ -62,6 +78,7 @@ extern "C" int main(void)
   gr551x_boot_step(GR551X_STEP_SETUP);
   setup();
   gr551x_boot_step(GR551X_STEP_SETUP_DONE);
+  variantPostSetup();
   bool first = true;
   for (;;) {
     uint32_t ev = gr551x_wake_events;
@@ -70,7 +87,7 @@ extern "C" int main(void)
     gr551x_service();
     if (s_idle_req) {
       s_idle_req = false;
-      if (ev == gr551x_wake_events && !gr551x_tone_busy()) {           /* rien n'est arrivé pendant le tour : on peut dormir */
+      if (ev == gr551x_wake_events && !must_stay_awake()) {           /* rien n'est arrivé pendant le tour : on peut dormir */
         pwr_mgmt_mode_set(PMR_MGMT_IDLE_MODE);
         pwr_mgmt_schedule();
         pwr_mgmt_mode_set(PMR_MGMT_ACTIVE_MODE);

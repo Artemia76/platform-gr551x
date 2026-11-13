@@ -43,6 +43,7 @@ void gr551x_service(void);
 /* Hooks de la variante (définitions faibles vides dans le cœur). */
 void initVariantEarly(void);            /* tout premier appel de main(), avant les constructeurs */
 void variantPoll(void);                 /* à chaque tour de loop() et pendant les attentes */
+void variantPostSetup(void);            /* après setup() : la configuration des broches par l'appli est faite */
 int  variantPinInverted(pin_size_t pin);/* 1 si la broche passe par un inverseur sur la carte */
 
 /* Tension en mV sur une broche MSIO (0x30+n), ADC du GR551x étalonné ; -1 si broche invalide ou erreur. */
@@ -52,6 +53,10 @@ int analogReadMilliVolts(pin_size_t pin);
  * interruption (réveil au plus tard par le minuteur d'une seconde du cœur). Ignorée si une interruption
  * est arrivée pendant le tour de boucle. */
 void gr551x_idle_request(void);
+
+/* Empêche la veille légère pendant `ms` millisecondes (prolonge, ne raccourcit jamais). Sert aux entrées
+ * lues par scrutation (bouton) : un appui bref passerait inaperçu pendant une seconde de sommeil. */
+void gr551x_stay_awake(uint32_t ms);
 
 /* Étape de démarrage franchie (la variante peut l'enregistrer de façon persistante). */
 void gr551x_boot_step(uint8_t id);

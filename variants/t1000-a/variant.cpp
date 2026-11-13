@@ -17,6 +17,7 @@ extern "C" {
 }
 
 #define BTN_DFU_MS 6000u
+#define BTN_AWAKE_MS 1000u    /* éveillé après le relâchement : > délai entre deux clics (500 ms) */
 
 extern "C" void board_led_set(int on)
 {
@@ -86,11 +87,21 @@ extern "C" void variantPoll(void)
 
   safety_poll(now);
   if (board_button_pressed()) {
+    gr551x_stay_awake(BTN_AWAKE_MS);   /* appli : lecture du bouton par scrutation (appuis multiples, long) */
     if (!btn_down) { btn_down = true; btn_since = now; }
     else if (now - btn_since >= BTN_DFU_MS) safety_enter_dfu();
   } else {
     btn_down = false;
   }
+}
+
+/* Appui sur le bouton : interruption qui réveille le CPU en veille légère ; variantPoll() le garde ensuite
+ * éveillé tant que le bouton est enfoncé. Posée après setup(), qui reconfigure la broche (pinMode). */
+static void btn_isr(void) {}
+
+void variantPostSetup(void)
+{
+  attachInterrupt(PIN_BUTTON1, btn_isr, RISING);
 }
 
 extern "C" void gr551x_enter_bootloader(void) { safety_enter_dfu(); }
