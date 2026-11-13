@@ -22,6 +22,11 @@ framework = arduino
 - `pio run -t upload` flashes it over **BLE** through the original Seeed bootloader (`tools/t1000_ble.py`,
   needs the `bleak` Python package and a Bluetooth adapter). With `custom_upload_enter_dfu = <BLE name>` the
   tool first asks the running sketch (`BleConsole` "dfu" command) to restart into the bootloader.
+- Before any DFU, the upload tool runs the firmware's ELF through the T1000-A digital twin's test suite
+  (an emulator of the board, `tools/sim` in the T1000A repository, located through `T1000_TWIN_DIR`). If a
+  test fails, or if the twin can't be found, the upload is refused. Set `custom_upload_skip_twin = yes` to
+  flash without this check. If PlatformIO's Python lacks `unicorn`, `pyelftools` and `pytest`, point
+  `T1000_TWIN_PYTHON` to an interpreter that has them.
 
 ## Layout
 
