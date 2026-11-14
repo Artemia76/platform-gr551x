@@ -5,13 +5,15 @@
  * ci-dessous, d'après gr55xx_hal_*_ex.h).
  * - tone() : rapport cyclique 50 %. Pendant un son, la veille légère est suspendue : le CPU peut y dormir jusqu'à
  *   1 s, ce qui casserait le rythme des mélodies (RTTTL). Les broches sans PWM sont ignorées.
- * - analogWrite() : 1 kHz, rapport cyclique 0..255 ramené au pour cent (résolution du pilote app_pwm). Le PWM
+ * - analogWrite() : 1 kHz, rapport cyclique 0..255 écrit dans le comparateur (gr551x_pwm_set_level). Le PWM
  *   continue pendant la veille ; il ne la bloque pas. pinMode() / digitalWrite() sur la broche la rendent au GPIO.
  *   Sans PWM sur la broche, ou module déjà pris par tone() : tout ou rien (seuil 128).
  * Un module tenu par analogWrite() n'est pas pris par tone(), et inversement.
  */
 #include "gr551x_internal.h"
 #include "app_pwm.h"
+#include "gr55xx_ll_aon_gpio.h"
+#include "gr55xx_ll_pwm.h"
 
 struct PwmPin {
   uint8_t pin;          /* numérotation Arduino du core */
@@ -33,7 +35,7 @@ struct ToneState {
   int16_t pin;               /* broche en cours, -1 si le module est libre */
   uint32_t stop_at;          /* millis() de fin, 0 = sans durée */
   bool analog;               /* tenu par analogWrite() */
-  uint8_t duty;              /* analogWrite() : rapport cyclique courant (%) */
+  uint8_t level;             /* analogWrite() : niveau courant (0..255) */
 };
 static ToneState s_tone[APP_PWM_ID_MAX] = {{{}, -1, 0, false, 0}, {{}, -1, 0, false, 0}};
 uint8_t gr551x_pwm_held;       /* nombre de broches tenues par analogWrite() (test rapide dans wiring.cpp) */
@@ -60,6 +62,21 @@ static void release(uint8_t id)
   digitalWrite(pin, LOW);
 }
 
+/* Rapport cyclique écrit directement dans le comparateur (CMPx1 = PRD × niveau / 255, aligné sur front) :
+   app_pwm_config_channel() reste sans effet une fois le module démarré (vu sur T1000-A), et ne fait que du 1 %.
+   Fonction à part (non inline) : le jumeau numérique l'intercepte pour suivre le rapport cyclique. */
+extern "C" __attribute__((noinline)) void gr551x_pwm_set_level(uint8_t id, uint8_t channel, uint8_t level)
+{
+  pwm_regs_t *r = id ? PWM1 : PWM0;
+  uint32_t cmp = (uint32_t)((uint64_t)READ_REG(r->PRD) * level / 255);
+  switch (channel) {
+    case 0: ll_pwm_set_compare_a1(r, cmp); break;
+    case 1: ll_pwm_set_compare_b1(r, cmp); break;
+    default: ll_pwm_set_compare_c1(r, cmp); break;
+  }
+  ll_pwm_enable_update_all(r);
+}
+
 static bool start(const PwmPin &p, uint8_t pin, uint32_t freq, uint8_t duty)
 {
   ToneState &s = s_tone[p.id];
@@ -82,6 +99,9 @@ static bool start(const PwmPin &p, uint8_t pin, uint32_t freq, uint8_t duty)
   prm.init.freq = freq;
   if (app_pwm_init(&prm) != APP_DRV_SUCCESS) return false;
   if (app_pwm_start(prm.id) != APP_DRV_SUCCESS) { app_pwm_deinit(prm.id); return false; }
+  /* AON : en mode MUX, le HAL laisse la sortie du pad coupée (AON_PAD_CTL1.AON_GPO_OE_N = 1, vu sur T1000-A :
+     PWM1 tournait, LED éteinte). On la rouvre ; le mux n'est pas touché. */
+  if (type == APP_IO_TYPE_AON) ll_aon_gpio_set_pin_mode(mask, LL_AON_GPIO_MODE_OUTPUT);
   return true;
 }
 
@@ -127,18 +147,17 @@ void analogWrite(pin_size_t pin, int value)
   }
   if (value < 0) value = 0;
   if (value > 255) value = 255;
-  uint8_t duty = (uint8_t)((value * 100 + 127) / 255);
   if (s->pin != (int16_t)pin) {
     release(p->id);                               /* autre voie du même module : on la rend au GPIO */
-    if (!start(*p, pin, 1000, duty)) return;
+    if (!start(*p, pin, 1000, (uint8_t)((value * 100 + 127) / 255))) return;
     s->pin = pin;
     s->analog = true;
     gr551x_pwm_held++;
-  } else if (duty != s->duty) {
-    app_pwm_channel_init_t cfg = {duty, PWM_DRIVEPOLARITY_POSITIVE};
-    app_pwm_config_channel((app_pwm_id_t)p->id, (app_pwm_active_channel_t)(1u << p->channel), &cfg);
+  } else if (value == s->level) {
+    return;
   }
-  s->duty = duty;
+  gr551x_pwm_set_level(p->id, p->channel, (uint8_t)value);
+  s->level = (uint8_t)value;
 }
 
 /* pinMode() / digitalWrite() : une broche tenue par analogWrite() revient au GPIO. */
