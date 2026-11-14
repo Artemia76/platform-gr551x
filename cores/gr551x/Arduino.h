@@ -70,6 +70,7 @@ typedef struct {
   uint32_t idle_refused_awake;   /* veille demandée, refusée : gr551x_stay_awake() ou son en cours */
   uint32_t wake_events;          /* interruptions utiles (broches, BLE, UART, minuteur) */
   uint32_t loops;                /* tours de loop() */
+  uint8_t  ble_connections;      /* connexions BLE ouvertes à l'instant */
 } gr551x_power_stats_t;
 void gr551x_power_stats_get(gr551x_power_stats_t *s);
 void gr551x_power_stats_reset(void);

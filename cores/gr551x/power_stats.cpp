@@ -78,6 +78,7 @@ extern "C" void gr551x_power_stats_get(gr551x_power_stats_t *s)
   s->idle_refused_awake = s_ref_awake;
   s->wake_events = gr551x_wake_events - s_wake0;
   s->loops = s_loops;
+  s->ble_connections = s_conns;
 }
 
 extern "C" void gr551x_power_stats_reset(void)
