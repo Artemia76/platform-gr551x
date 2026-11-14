@@ -64,11 +64,13 @@ static void release(uint8_t id)
 
 /* Rapport cyclique écrit directement dans le comparateur (CMPx1 = PRD × niveau / 255, aligné sur front) :
    app_pwm_config_channel() reste sans effet une fois le module démarré (vu sur T1000-A), et ne fait que du 1 %.
+   UPDATE.SA déjà à 1 ne recopie rien : on le repasse à 0 avant d'écrire, puis à 1 (comme les HAL Goodix).
    Fonction à part (non inline) : le jumeau numérique l'intercepte pour suivre le rapport cyclique. */
 extern "C" __attribute__((noinline)) void gr551x_pwm_set_level(uint8_t id, uint8_t channel, uint8_t level)
 {
   pwm_regs_t *r = id ? PWM1 : PWM0;
   uint32_t cmp = (uint32_t)((uint64_t)READ_REG(r->PRD) * level / 255);
+  ll_pwm_disable_update_all(r);       /* la recopie en fin de période se fait sur le front montant de SA */
   switch (channel) {
     case 0: ll_pwm_set_compare_a1(r, cmp); break;
     case 1: ll_pwm_set_compare_b1(r, cmp); break;
