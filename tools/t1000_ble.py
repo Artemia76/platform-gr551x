@@ -9,7 +9,7 @@ Sous-commandes :
                                  d'abord passer les tests du jumeau numérique (t1000a-twin), sinon refus
                                  (--skip-twin pour forcer)
   at CMD… [--name N]             envoie des commandes AT au firmware Seeed (UART transparent BLE)
-  console [--name N]             console texte du firmware de test (service GUS)
+  console [--name N] [--cmd L]…  console texte (service GUS) ; --cmd : envoie les commandes puis quitte
 
 Exemples :
   t1000_ble.py gatt -t 120       puis appui long sur le bouton du T1000-A
@@ -601,7 +601,20 @@ async def cmd_at(a):
 async def cmd_console(a):
     c, adv = await connect(a.name, a.t)
     async with disconnecting(c):
-        await c.start_notify(GUS_TX, lambda _h, d: print(d.decode(errors='replace'), end='', flush=True))
+        last = [time.monotonic()]
+
+        def on_data(_h, d):
+            last[0] = time.monotonic()
+            print(d.decode(errors='replace'), end='', flush=True)
+
+        await c.start_notify(GUS_TX, on_data)
+        if a.cmd_lines:   # non interactif : chaque commande, puis attendre que la console se taise
+            for line in a.cmd_lines:
+                last[0] = time.monotonic()
+                await c.write_gatt_char(GUS_RX, line.encode() + b'\r\n', response=False)
+                while c.is_connected and time.monotonic() - last[0] < a.quiet:
+                    await asyncio.sleep(0.1)
+            return
         print(f'connecté à {adv.local_name} (Ctrl-D pour quitter)')
         loop = asyncio.get_running_loop()
         while c.is_connected:
@@ -652,6 +665,9 @@ def main():
     p = sub.add_parser('at'); p.add_argument('cmds', nargs='+'); p.add_argument('--name', default='T1000')
     p.add_argument('-t', type=float, default=180)
     p = sub.add_parser('console'); p.add_argument('--name', default='T1000A-Test'); p.add_argument('-t', type=float, default=60)
+    p.add_argument('--cmd', dest='cmd_lines', action='append', metavar='LIGNE',
+                   help='envoyer cette commande puis quitter (répétable, ex. --cmd power --cmd "power log")')
+    p.add_argument('--quiet', type=float, default=2.0, help='avec --cmd : secondes de silence qui terminent une réponse')
     a = ap.parse_args()
     try:
         asyncio.run({'scan': cmd_scan, 'gatt': cmd_gatt, 'flash': cmd_flash, 'at': cmd_at, 'console': cmd_console}[a.cmd](a))
