@@ -1,0 +1,31 @@
+# Compile l'exemple blink avec la plateforme du commit (cœur, SDK figé dans platform.json, image DFU,
+# vérification des gestionnaires d'exception par tools/check_handlers.py).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  blink:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('platform.json') }}
+      - run: pip install platformio
+      - name: Compilation de examples/blink
+        working-directory: examples/blink
+        run: pio run
+      - name: Image DFU
+        run: ls -l examples/blink/.pio/build/t1000-a/firmware_dfu.bin

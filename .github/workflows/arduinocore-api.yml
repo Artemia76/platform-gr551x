@@ -1,0 +1,69 @@
+# Chaque mois : si arduino/ArduinoCore-API a publié une version, la copie de cores/gr551x/api est refaite
+# (tools/update-arduinocore-api.sh : version publiée + nos patchs), blink est compilé, puis une PR est ouverte.
+# Un patch qui ne s'applique plus fait échouer le job (notification GitHub) : le rafraîchir à la main.
+# Réglage du dépôt nécessaire : Settings > Actions > General > « Allow GitHub Actions to create and approve
+# pull requests ».
+name: ArduinoCore-API
+
+on:
+  schedule:
+    - cron: '17 6 1 * *'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Version d'ArduinoCore-API (vide = dernière publiée)
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mise à jour de cores/gr551x/api
+        id: up
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set +e
+          tools/update-arduinocore-api.sh "$TAG"
+          rc=$?
+          set -e
+          case $rc in
+            0)  echo "changed=true" >> "$GITHUB_OUTPUT" ;;
+            10) echo "changed=false" >> "$GITHUB_OUTPUT" ;;
+            *)  exit "$rc" ;;
+          esac
+          echo "version=$(cat patches/arduinocore-api/VERSION)" >> "$GITHUB_OUTPUT"
+      - if: steps.up.outputs.changed == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - if: steps.up.outputs.changed == 'true'
+        name: Compilation de examples/blink
+        working-directory: examples/blink
+        run: |
+          pip install platformio
+          pio run
+      - if: steps.up.outputs.changed == 'true'
+        name: Pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.up.outputs.version }}
+        run: |
+          branch="auto/arduinocore-api-$VERSION"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "$branch existe déjà : PR déjà ouverte"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add -A cores/gr551x/api patches/arduinocore-api README.md
+          git commit -m "ArduinoCore-API $VERSION (+ patchs de la plateforme)"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "ArduinoCore-API $VERSION" \
+            --body "Copie de \`cores/gr551x/api\` refaite par \`tools/update-arduinocore-api.sh\` ; les patchs de \`patches/arduinocore-api\` s'appliquent et \`examples/blink\` compile. À valider sur le jumeau (T1000A) avant publication d'une version de la plateforme."

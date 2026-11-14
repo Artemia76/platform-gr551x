@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- ArduinoCore-API changes kept as patches (`patches/arduinocore-api/`), re-applied by
+  `tools/update-arduinocore-api.sh`; monthly update workflow and CI build of `examples/blink`.
 - `t1000_ble.py flash` refuses a firmware that fails the digital twin tests (`--skip-twin` to override).
 - The digital twin now lives in its own repository, [t1000a-twin](https://github.com/Artemia76/t1000a-twin);
   `t1000_ble.py` finds it as `emulator/twin` of the T1000A repository, or through `T1000_TWIN_DIR`.

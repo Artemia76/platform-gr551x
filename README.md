@@ -38,8 +38,16 @@ framework = arduino
 | `variants/t1000-a/` | Pin map, SDK `custom_config.h`, linker script, boot safety and fault recorder |
 | `libraries/SPI` | SPI master (`app_spi`) |
 | `libraries/BleConsole` | Text console over BLE (Goodix UART service) with `dfu` / `reboot` commands |
-| `tools/` | `mkimage.py` (DFU image), `t1000_ble.py` (BLE flasher) |
+| `tools/` | `mkimage.py` (DFU image), `t1000_ble.py` (BLE flasher), `update-arduinocore-api.sh` (refresh `cores/gr551x/api`) |
+| `patches/arduinocore-api/` | Our changes to ArduinoCore-API, re-applied on each update, and the vendored version |
 | `examples/blink` | LED + BLE console |
+
+## Maintenance
+
+- `cores/gr551x/api/` is never edited by hand: change or add a patch in `patches/arduinocore-api/`, then run
+  `tools/update-arduinocore-api.sh <version>`. The monthly `ArduinoCore-API` workflow does it when a new
+  version is released and opens a pull request once `examples/blink` builds.
+- The `CI` workflow builds `examples/blink` on every push and pull request.
 
 ## Core notes
 
