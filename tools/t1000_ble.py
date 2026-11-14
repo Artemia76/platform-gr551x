@@ -350,7 +350,7 @@ async def fast_flash(c, a, img, tail):
 def find_twin():
     """Dossier du jumeau numérique (dépôt t1000a-twin) : $T1000_TWIN_DIR, ou son sous-module emulator/twin du
     dépôt T1000A quand la plateforme y est montée en platform/gr551x."""
-    here = os.path.dirname(os.path.abspath(__file__))
+    here = os.path.dirname(os.path.realpath(__file__))  # realpath : appel par lien symbolique
     for d in (os.environ.get('T1000_TWIN_DIR'), os.path.join(here, 'sim'),
               os.path.join(here, '..', '..', '..', 'emulator', 'twin')):
         if d and os.path.exists(os.path.join(d, 'tests', 'conftest.py')):
