@@ -6,7 +6,7 @@ Sous-commandes :
   gatt [--name N] [-t s]         attend l'appareil (fenêtre courte après appui long), s'y connecte
                                  immédiatement et liste services / caractéristiques
   flash FICHIER [--name N]       DFU Goodix vers le bootloader (SENSECAP_GR_DFU_xxxx) ; le firmware doit
-                                 d'abord passer les tests du jumeau numérique (tools/sim), sinon refus
+                                 d'abord passer les tests du jumeau numérique (t1000a-twin), sinon refus
                                  (--skip-twin pour forcer)
   at CMD… [--name N]             envoie des commandes AT au firmware Seeed (UART transparent BLE)
   console [--name N]             console texte du firmware de test (service GUS)
@@ -348,9 +348,11 @@ async def fast_flash(c, a, img, tail):
 
 
 def find_twin():
-    """Dossier du jumeau numérique : $T1000_TWIN_DIR, ou tools/sim du dépôt T1000A (outil copié ou non)."""
+    """Dossier du jumeau numérique (dépôt t1000a-twin) : $T1000_TWIN_DIR, ou son sous-module emulator/twin du
+    dépôt T1000A quand la plateforme y est montée en platform/gr551x."""
     here = os.path.dirname(os.path.abspath(__file__))
-    for d in (os.environ.get('T1000_TWIN_DIR'), os.path.join(here, 'sim'), os.path.join(here, '..', '..', 'tools', 'sim')):
+    for d in (os.environ.get('T1000_TWIN_DIR'), os.path.join(here, 'sim'),
+              os.path.join(here, '..', '..', '..', 'emulator', 'twin')):
         if d and os.path.exists(os.path.join(d, 'tests', 'conftest.py')):
             return os.path.abspath(d)
     return None
@@ -377,10 +379,10 @@ def twin_gate(a):
         refuse(f'ELF introuvable à côté de l\'image ({elf}) : le jumeau ne peut pas valider ce firmware')
     sim = find_twin()
     if not sim:
-        refuse('jumeau numérique introuvable (définir T1000_TWIN_DIR=…/tools/sim)')
+        refuse('jumeau numérique introuvable (définir T1000_TWIN_DIR=…/emulator/twin)')
     py = twin_python()
     if not py:
-        refuse('aucun Python avec unicorn, pyelftools et pytest (pip install -r tools/sim/requirements.txt, '
+        refuse('aucun Python avec unicorn, pyelftools et pytest (pip install -r emulator/twin/requirements.txt, '
                'ou T1000_TWIN_PYTHON=…)')
     print(f'Validation de {os.path.basename(elf)} par le jumeau numérique ({sim})…', flush=True)
     t0 = time.time()

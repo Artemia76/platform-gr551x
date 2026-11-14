@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- `t1000_ble.py flash` refuses a firmware that fails the digital twin tests (`--skip-twin` to override).
+- The digital twin now lives in its own repository, [t1000a-twin](https://github.com/Artemia76/t1000a-twin);
+  `t1000_ble.py` finds it as `emulator/twin` of the T1000A repository, or through `T1000_TWIN_DIR`.
+
 ## 0.1.0
 
 First tagged release. Enough to run MeshCore (companion over BLE, repeater) on the Seeed SenseCAP T1000-A.
