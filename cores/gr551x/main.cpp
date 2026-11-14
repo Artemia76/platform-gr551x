@@ -83,16 +83,22 @@ extern "C" int main(void)
   for (;;) {
     uint32_t ev = gr551x_wake_events;
     loop();
+    gr551x_pstat_loop();
     if (first) { first = false; gr551x_boot_step(GR551X_STEP_LOOP); }
     gr551x_service();
     if (s_idle_req) {
       s_idle_req = false;
-      if (ev == gr551x_wake_events && !must_stay_awake()) {           /* rien n'est arrivé pendant le tour : on peut dormir */
+      bool event = ev != gr551x_wake_events;
+      bool awake = !event && must_stay_awake();
+      if (!event && !awake) {           /* rien n'est arrivé pendant le tour : on peut dormir */
+        uint64_t t0 = gr551x_ticks32k();
         pwr_mgmt_mode_set(PMR_MGMT_IDLE_MODE);
         pwr_mgmt_schedule();
         pwr_mgmt_mode_set(PMR_MGMT_ACTIVE_MODE);
+        gr551x_pstat_idle(gr551x_ticks32k() - t0);
         continue;
       }
+      gr551x_pstat_refused(awake);
     }
     pwr_mgmt_schedule();
   }

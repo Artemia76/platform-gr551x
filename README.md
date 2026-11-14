@@ -57,6 +57,10 @@ framework = arduino
   cycle counter is only used for short busy waits (`delayMicroseconds()`).
 - **Sleep**: `gr551x_idle_request()` puts the CPU in IDLE (WFI) at the end of a `loop()` pass, unless an interrupt
   (pin, BLE, UART, 1 s timer, button) arrived during that pass.
+- **Power statistics**: `gr551x_power_stats_get()` returns, since boot or `gr551x_power_stats_reset()`, the time
+  spent in IDLE, with a BLE connection open and advertising (32 kHz ticks), the number of sleeps, the sleeps refused
+  (interrupt during the pass, or `gr551x_stay_awake()` / tone), wake-up interrupts and `loop()` passes. Meant to
+  estimate the power budget from the time spent in each state.
 - **Pins**: 0–31 GPIO, `0x20 + n` AON n, `0x30 + n` MSIO n (the numbering used by Seeed's firmware).
 - **BLE**: the ROM stack is started before `setup()`. Libraries subscribe with `gr551x_ble_add_handler()` and
   add their GATT services from `gr551x_ble_on_ready()`.

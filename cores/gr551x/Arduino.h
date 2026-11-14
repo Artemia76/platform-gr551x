@@ -58,6 +58,22 @@ void gr551x_idle_request(void);
  * lues par scrutation (bouton) : un appui bref passerait inaperçu pendant une seconde de sommeil. */
 void gr551x_stay_awake(uint32_t ms);
 
+/* Statistiques d'énergie : durées en ticks de 32 768 Hz depuis le démarrage ou le dernier
+ * gr551x_power_stats_reset(). Servent à estimer la consommation (temps passé dans chaque état). */
+typedef struct {
+  uint64_t total_ticks;          /* durée couverte */
+  uint64_t idle_ticks;           /* CPU en veille légère (IDLE, WFI) */
+  uint64_t ble_conn_ticks;       /* au moins une connexion BLE ouverte */
+  uint64_t ble_adv_ticks;        /* annonces BLE en cours */
+  uint32_t idle_entries;         /* entrées en veille */
+  uint32_t idle_refused_event;   /* veille demandée, refusée : interruption arrivée pendant le tour */
+  uint32_t idle_refused_awake;   /* veille demandée, refusée : gr551x_stay_awake() ou son en cours */
+  uint32_t wake_events;          /* interruptions utiles (broches, BLE, UART, minuteur) */
+  uint32_t loops;                /* tours de loop() */
+} gr551x_power_stats_t;
+void gr551x_power_stats_get(gr551x_power_stats_t *s);
+void gr551x_power_stats_reset(void);
+
 /* Étape de démarrage franchie (la variante peut l'enregistrer de façon persistante). */
 void gr551x_boot_step(uint8_t id);
 #define GR551X_STEP_CTORS      0x41
