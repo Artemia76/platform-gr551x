@@ -1,9 +1,14 @@
 /*
- * tone() / noTone() sur les modules PWM du GR551x (PWM0, PWM1 ; voies A, B, C).
+ * tone() / noTone() et analogWrite() sur les modules PWM du GR551x (PWM0, PWM1 ; voies A, B, C).
  *
- * Un son à la fois par module, rapport cyclique 50 %. Seules les broches qui ont une fonction PWM sont prises en
- * charge (table ci-dessous, d'après gr55xx_hal_*_ex.h) ; les autres sont ignorées. Pendant un son, la veille
- * légère est suspendue : le CPU peut y dormir jusqu'à 1 s, ce qui casserait le rythme des mélodies (RTTTL).
+ * Une broche à la fois par module. Seules les broches qui ont une fonction PWM sont prises en charge (table
+ * ci-dessous, d'après gr55xx_hal_*_ex.h).
+ * - tone() : rapport cyclique 50 %. Pendant un son, la veille légère est suspendue : le CPU peut y dormir jusqu'à
+ *   1 s, ce qui casserait le rythme des mélodies (RTTTL). Les broches sans PWM sont ignorées.
+ * - analogWrite() : 1 kHz, rapport cyclique 0..255 ramené au pour cent (résolution du pilote app_pwm). Le PWM
+ *   continue pendant la veille ; il ne la bloque pas. pinMode() / digitalWrite() sur la broche la rendent au GPIO.
+ *   Sans PWM sur la broche, ou module déjà pris par tone() : tout ou rien (seuil 128).
+ * Un module tenu par analogWrite() n'est pas pris par tone(), et inversement.
  */
 #include "gr551x_internal.h"
 #include "app_pwm.h"
@@ -27,8 +32,11 @@ struct ToneState {
   app_pwm_params_t params;   /* doit rester en mémoire : le pilote garde un pointeur dessus */
   int16_t pin;               /* broche en cours, -1 si le module est libre */
   uint32_t stop_at;          /* millis() de fin, 0 = sans durée */
+  bool analog;               /* tenu par analogWrite() */
+  uint8_t duty;              /* analogWrite() : rapport cyclique courant (%) */
 };
-static ToneState s_tone[APP_PWM_ID_MAX] = {{{}, -1, 0}, {{}, -1, 0}};
+static ToneState s_tone[APP_PWM_ID_MAX] = {{{}, -1, 0, false, 0}, {{}, -1, 0, false, 0}};
+uint8_t gr551x_pwm_held;       /* nombre de broches tenues par analogWrite() (test rapide dans wiring.cpp) */
 static uint32_t s_last_use;    /* millis() du dernier tone()/noTone() : les silences d'une mélodie comptent */
 
 static const PwmPin *find_pin(uint8_t pin)
@@ -47,8 +55,34 @@ static void release(uint8_t id)
   pin_size_t pin = (pin_size_t)s.pin;
   s.pin = -1;
   s.stop_at = 0;
+  if (s.analog) { s.analog = false; gr551x_pwm_held--; }   /* avant pinMode() : pas de récursion */
   pinMode(pin, OUTPUT);          /* comme sur AVR : la broche reste en sortie, à l'état bas */
   digitalWrite(pin, LOW);
+}
+
+static bool start(const PwmPin &p, uint8_t pin, uint32_t freq, uint8_t duty)
+{
+  ToneState &s = s_tone[p.id];
+  app_pwm_params_t &prm = s.params;
+  memset(&prm, 0, sizeof(prm));
+  app_io_type_t type;
+  uint32_t mask;
+  gr551x_pin_decode(pin, &type, &mask);
+  app_pwm_pin_t io = {type, (app_io_mux_t)p.mux, mask, APP_IO_NOPULL, APP_PWM_PIN_ENABLE};
+  app_pwm_pin_t *chan[3] = {&prm.pin_cfg.channel_a, &prm.pin_cfg.channel_b, &prm.pin_cfg.channel_c};
+  pwm_channel_init_t *cfg[3] = {&prm.init.channel_a, &prm.init.channel_b, &prm.init.channel_c};
+  *chan[p.channel] = io;
+  cfg[p.channel]->duty = duty;
+  cfg[p.channel]->drive_polarity = PWM_DRIVEPOLARITY_POSITIVE;
+
+  prm.id = (app_pwm_id_t)p.id;
+  prm.active_channel = (app_pwm_active_channel_t)(1u << p.channel);
+  prm.init.mode = PWM_MODE_FLICKER;
+  prm.init.align = PWM_ALIGNED_EDGE;
+  prm.init.freq = freq;
+  if (app_pwm_init(&prm) != APP_DRV_SUCCESS) return false;
+  if (app_pwm_start(prm.id) != APP_DRV_SUCCESS) { app_pwm_deinit(prm.id); return false; }
+  return true;
 }
 
 void tone(uint8_t pin, unsigned int frequency, unsigned long duration)
@@ -60,28 +94,11 @@ void tone(uint8_t pin, unsigned int frequency, unsigned long duration)
   if (frequency > 20000) return;      /* hors audio (ex. note RTTTL hors tableau) : ignoré */
 
   ToneState &s = s_tone[p->id];
+  if (s.analog) return;               /* module tenu par analogWrite() */
   if (s.pin != pin) {
     release(p->id);
 
-    app_pwm_params_t &prm = s.params;
-    memset(&prm, 0, sizeof(prm));
-    app_io_type_t type;
-    uint32_t mask;
-    gr551x_pin_decode(pin, &type, &mask);
-    app_pwm_pin_t io = {type, (app_io_mux_t)p->mux, mask, APP_IO_NOPULL, APP_PWM_PIN_ENABLE};
-    app_pwm_pin_t *chan[3] = {&prm.pin_cfg.channel_a, &prm.pin_cfg.channel_b, &prm.pin_cfg.channel_c};
-    pwm_channel_init_t *cfg[3] = {&prm.init.channel_a, &prm.init.channel_b, &prm.init.channel_c};
-    *chan[p->channel] = io;
-    cfg[p->channel]->duty = 50;
-    cfg[p->channel]->drive_polarity = PWM_DRIVEPOLARITY_POSITIVE;
-
-    prm.id = (app_pwm_id_t)p->id;
-    prm.active_channel = (app_pwm_active_channel_t)(1u << p->channel);
-    prm.init.mode = PWM_MODE_FLICKER;
-    prm.init.align = PWM_ALIGNED_EDGE;
-    prm.init.freq = frequency;
-    if (app_pwm_init(&prm) != APP_DRV_SUCCESS) return;
-    if (app_pwm_start(prm.id) != APP_DRV_SUCCESS) { app_pwm_deinit(prm.id); return; }
+    if (!start(*p, pin, frequency, 50)) return;
     s.pin = pin;
   } else {
     app_pwm_update_freq((app_pwm_id_t)p->id, frequency);
@@ -96,7 +113,39 @@ void noTone(uint8_t pin)
   const PwmPin *p = find_pin(pin);
   if (!p) return;
   s_last_use = millis();
-  if (s_tone[p->id].pin == pin) release(p->id);
+  if (s_tone[p->id].pin == pin && !s_tone[p->id].analog) release(p->id);
+}
+
+void analogWrite(pin_size_t pin, int value)
+{
+  const PwmPin *p = find_pin(pin);
+  ToneState *s = p ? &s_tone[p->id] : nullptr;
+  if (!p || (s->pin >= 0 && !s->analog)) {        /* pas de PWM ici, ou module occupé par tone() */
+    pinMode(pin, OUTPUT);
+    digitalWrite(pin, value > 127 ? HIGH : LOW);
+    return;
+  }
+  if (value < 0) value = 0;
+  if (value > 255) value = 255;
+  uint8_t duty = (uint8_t)((value * 100 + 127) / 255);
+  if (s->pin != (int16_t)pin) {
+    release(p->id);                               /* autre voie du même module : on la rend au GPIO */
+    if (!start(*p, pin, 1000, duty)) return;
+    s->pin = pin;
+    s->analog = true;
+    gr551x_pwm_held++;
+  } else if (duty != s->duty) {
+    app_pwm_channel_init_t cfg = {duty, PWM_DRIVEPOLARITY_POSITIVE};
+    app_pwm_config_channel((app_pwm_id_t)p->id, (app_pwm_active_channel_t)(1u << p->channel), &cfg);
+  }
+  s->duty = duty;
+}
+
+/* pinMode() / digitalWrite() : une broche tenue par analogWrite() revient au GPIO. */
+void gr551x_pwm_pin_release(pin_size_t pin)
+{
+  for (uint8_t id = 0; id < APP_PWM_ID_MAX; id++)
+    if (s_tone[id].analog && s_tone[id].pin == (int16_t)pin) release(id);
 }
 
 /* Appelé par gr551x_service() : fin des sons à durée fixée. */
@@ -111,5 +160,7 @@ void gr551x_tone_poll(void)
 /* Vrai pendant un son et dans la seconde qui suit (silences entre deux notes). */
 bool gr551x_tone_busy(void)
 {
-  return s_tone[0].pin >= 0 || s_tone[1].pin >= 0 || (s_last_use && millis() - s_last_use < 1000);
+  for (const ToneState &s : s_tone)
+    if (s.pin >= 0 && !s.analog) return true;     /* analogWrite() ne bloque pas la veille */
+  return s_last_use && millis() - s_last_use < 1000;
 }

@@ -8,6 +8,8 @@ extern "C" uint64_t gr551x_ticks32k(void);
 extern volatile uint32_t gr551x_wake_events;   /* incrémenté par les interruptions utiles (réveil) */
 void gr551x_tone_poll(void);                  /* tone.cpp : fin des sons à durée fixée */
 bool gr551x_tone_busy(void);                  /* tone.cpp : un son joue (pas de veille) */
+extern uint8_t gr551x_pwm_held;               /* tone.cpp : broches tenues par analogWrite() */
+void gr551x_pwm_pin_release(pin_size_t pin);  /* tone.cpp : rend une broche analogWrite() au GPIO */
 
 /* power_stats.cpp : alimentés par main.cpp (veille) et gr551x_ble.cpp (connexions, annonces) */
 void gr551x_pstat_loop(void);

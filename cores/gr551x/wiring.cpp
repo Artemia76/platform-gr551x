@@ -38,6 +38,7 @@ void pinMode(pin_size_t pin, PinMode mode)
   app_io_type_t t;
   uint32_t m;
   if (!gr551x_pin_decode(pin, &t, &m)) return;
+  if (gr551x_pwm_held) gr551x_pwm_pin_release(pin);
   app_io_init_t io;
   io.pin  = m;
   io.mux  = APP_IO_MUX_7;     /* fonction GPIO */
@@ -51,6 +52,7 @@ void digitalWrite(pin_size_t pin, PinStatus val)
   app_io_type_t t;
   uint32_t m;
   if (!gr551x_pin_decode(pin, &t, &m)) return;
+  if (gr551x_pwm_held) gr551x_pwm_pin_release(pin);
   app_io_write_pin(t, m, val == LOW ? APP_IO_PIN_RESET : APP_IO_PIN_SET);
 }
 
@@ -67,7 +69,6 @@ PinStatus digitalRead(pin_size_t pin)
 
 int analogRead(pin_size_t pin) { (void)pin; return 0; }        /* TODO : ADC (batterie) */
 void analogReference(uint8_t mode) { (void)mode; }
-void analogWrite(pin_size_t pin, int value) { pinMode(pin, OUTPUT); digitalWrite(pin, value > 127 ? HIGH : LOW); }
 
 /* ------------------------------------------------------------------ interruptions */
 

@@ -61,6 +61,10 @@ framework = arduino
   spent in IDLE, with a BLE connection open and advertising (32 kHz ticks), the number of sleeps, the sleeps refused
   (interrupt during the pass, or `gr551x_stay_awake()` / tone), wake-up interrupts and `loop()` passes. Meant to
   estimate the power budget from the time spent in each state.
+- **PWM**: `tone()` and `analogWrite()` use the PWM0/PWM1 modules, one pin per module, on the pins that have a PWM
+  function. `analogWrite()` runs at 1 kHz with 1 % resolution (0–255 is scaled to the `app_pwm` duty), keeps
+  running in IDLE, and `pinMode()`/`digitalWrite()` give the pin back to GPIO. On other pins, or on a module busy
+  with `tone()`, it falls back to on/off.
 - **Pins**: 0–31 GPIO, `0x20 + n` AON n, `0x30 + n` MSIO n (the numbering used by Seeed's firmware).
 - **BLE**: the ROM stack is started before `setup()`. Libraries subscribe with `gr551x_ble_add_handler()` and
   add their GATT services from `gr551x_ble_on_ready()`.
