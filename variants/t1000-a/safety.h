@@ -30,4 +30,16 @@ void safety_wdt_kick(void);
 /* Nombre de démarrages rapides consécutifs constaté au démarrage. */
 uint32_t safety_boot_count(void);
 
+/* Arrêt véritable : coupe le chien de garde, remet la garde à zéro et enregistre l'état « éteint »
+ * (tension et calendrier du premier arrêt, conservés lors des retours en veille suivants). */
+typedef struct {
+    uint8_t  magic[4];
+    uint16_t batt_mv;
+    uint16_t reserved;
+    uint32_t calendar;
+} safety_off_rec_t;
+void safety_power_off(uint16_t batt_mv, uint32_t calendar);
+int safety_off_read(safety_off_rec_t *rec);
+void safety_off_clear(void);
+
 #endif

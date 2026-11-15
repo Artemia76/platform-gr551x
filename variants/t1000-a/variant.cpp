@@ -105,4 +105,21 @@ void variantPostSetup(void)
 }
 
 extern "C" void gr551x_enter_bootloader(void) { safety_enter_dfu(); }
+
+/* Arrêt véritable (gr551x_power_off) : chien de garde coupé, garde remise à zéro, état « éteint » enregistré. */
+extern "C" void variantPowerOff(const gr551x_wake_cfg_t *cfg)
+{
+  board_led_set(0);
+  safety_power_off(cfg->batt_mv, gr551x_calendar_raw());
+}
+
+extern "C" bool gr551x_power_off_state(gr551x_off_info_t *info)
+{
+  safety_off_rec_t r;
+  if (!safety_off_read(&r)) return false;
+  if (info) { info->batt_mv = r.batt_mv; info->calendar = r.calendar; }
+  return true;
+}
+
+extern "C" void gr551x_power_off_clear(void) { safety_off_clear(); }
 extern "C" void gr551x_reboot(void) { safety_reboot(); }

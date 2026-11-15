@@ -4,6 +4,7 @@
 #include "app_aon_wdt.h"
 #include "gr55xx_hal.h"
 #include "gr55xx_delay.h"
+#include <string.h>
 
 #define BOOT_GUARD_MAX_FAST_BOOTS   3        /* au 3e démarrage court consécutif → DFU */
 #ifndef SAFETY_STABLE_MS
@@ -138,4 +139,43 @@ void safety_wdt_kick(void)
 uint32_t safety_boot_count(void)
 {
     return s_boot_count;
+}
+
+/*
+ * Arrêt véritable : enregistrement « éteint » dans le secteur de garde, à l'offset 0x800 (hors de la zone de
+ * comptage). Il porte la tension batterie et le calendrier AON du premier arrêt ; les retours en veille qui
+ * suivent (appui trop court, câble débranché) le conservent, pour mesurer toute la durée d'arrêt.
+ */
+#define OFF_REC_ADDR (FLASH_BOOT_GUARD_ADDR + 0x800u)
+static const uint8_t s_off_magic[4] = { 'O', 'F', 'F', '1' };
+
+int safety_off_read(safety_off_rec_t *rec)
+{
+    safety_off_rec_t r;
+    hal_flash_read(OFF_REC_ADDR, (uint8_t *)&r, sizeof(r));
+    if (memcmp(r.magic, s_off_magic, sizeof(s_off_magic)) != 0) return 0;
+    if (rec) *rec = r;
+    return 1;
+}
+
+void safety_power_off(uint16_t batt_mv, uint32_t calendar)
+{
+    safety_off_rec_t r;
+    int had = safety_off_read(&r);
+
+    wdt_stop();                 /* le chien de garde AON tourne aussi en veille : il redémarrerait le boîtier */
+    guard_clear();              /* les réveils sans démarrage complet ne comptent pas comme des échecs */
+    if (!had) {
+        memcpy(r.magic, s_off_magic, sizeof(s_off_magic));
+        r.batt_mv = batt_mv;
+        r.reserved = 0xFFFF;
+        r.calendar = calendar;
+    }
+    hal_flash_write(OFF_REC_ADDR, (uint8_t *)&r, sizeof(r));
+}
+
+void safety_off_clear(void)
+{
+    static const uint8_t zero[4] = { 0, 0, 0, 0 };   /* 1 → 0 sans effacement : l'en-tête devient invalide */
+    hal_flash_write(OFF_REC_ADDR, zero, sizeof(zero));
 }
