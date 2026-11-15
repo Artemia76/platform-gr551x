@@ -143,10 +143,12 @@ uint32_t safety_boot_count(void)
 
 /*
  * Arrêt véritable : enregistrement « éteint » dans le secteur de garde, à l'offset 0x800 (hors de la zone de
- * comptage). Il porte la tension batterie et le calendrier AON du premier arrêt ; les retours en veille qui
+ * comptage). Il porte la tension batterie du premier arrêt ; les retours en veille qui
  * suivent (appui trop court, câble débranché) le conservent, pour mesurer toute la durée d'arrêt.
  */
-#define OFF_REC_ADDR (FLASH_BOOT_GUARD_ADDR + 0x800u)
+#define OFF_REC_ADDR   (FLASH_BOOT_GUARD_ADDR + 0x800u)
+#define OFF_WAKES_ADDR (FLASH_BOOT_GUARD_ADDR + 0x810u)   /* compteur de réveils : un octet 0x00 par réveil */
+#define OFF_WAKES_MAX  0x7F0u
 static const uint8_t s_off_magic[4] = { 'O', 'F', 'F', '1' };
 
 int safety_off_read(safety_off_rec_t *rec)
@@ -158,10 +160,11 @@ int safety_off_read(safety_off_rec_t *rec)
     return 1;
 }
 
-void safety_power_off(uint16_t batt_mv, uint32_t calendar)
+void safety_power_off(uint16_t batt_mv)
 {
     safety_off_rec_t r;
     int had = safety_off_read(&r);
+    uint32_t wakes = had ? safety_off_wakes() : 0;   /* avant guard_clear(), qui efface le secteur */
 
     wdt_stop();                 /* le chien de garde AON tourne aussi en veille : il redémarrerait le boîtier */
     guard_clear();              /* les réveils sans démarrage complet ne comptent pas comme des échecs */
@@ -169,9 +172,29 @@ void safety_power_off(uint16_t batt_mv, uint32_t calendar)
         memcpy(r.magic, s_off_magic, sizeof(s_off_magic));
         r.batt_mv = batt_mv;
         r.reserved = 0xFFFF;
-        r.calendar = calendar;
+        r.unused = 0xFFFFFFFFu;
     }
     hal_flash_write(OFF_REC_ADDR, (uint8_t *)&r, sizeof(r));
+    if (had) {                                  /* un octet 0x00 par retour en veille sans démarrage complet */
+        static const uint8_t zeros[16] = { 0 };
+        uint32_t n = wakes < OFF_WAKES_MAX ? wakes + 1 : OFF_WAKES_MAX;
+        for (uint32_t off = 0; off < n; off += sizeof(zeros))
+            hal_flash_write(OFF_WAKES_ADDR + off, zeros, n - off < sizeof(zeros) ? n - off : sizeof(zeros));
+    }
+}
+
+uint32_t safety_off_wakes(void)
+{
+    uint8_t buf[16];
+    uint32_t n = 0;
+    for (uint32_t off = 0; off < OFF_WAKES_MAX; off += sizeof(buf)) {
+        hal_flash_read(OFF_WAKES_ADDR + off, buf, sizeof(buf));
+        for (uint32_t i = 0; i < sizeof(buf); i++) {
+            if (buf[i] != 0x00) return n;
+            n++;
+        }
+    }
+    return n;
 }
 
 void safety_off_clear(void)

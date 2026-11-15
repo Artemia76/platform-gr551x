@@ -60,7 +60,6 @@ SDK_SRC = [
     "drivers/src/app_adc.c",
     "drivers/src/app_uart.c",
     "drivers/src/app_pwm.c",
-    "drivers/src/app_comp.c",
     "components/libraries/ring_buffer/ring_buffer.c",
     "components/libraries/utility/utility.c",
     "components/libraries/pmu_calibration/pmu_calibration.c",
