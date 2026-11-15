@@ -180,6 +180,8 @@ static uint32_t cal_read(void)
   return v;
 }
 
+extern "C" uint32_t gr551x_calendar_raw(void) { return cal_read(); }
+
 extern "C" uint64_t gr551x_ticks32k(void)
 {
   uint32_t primask = __get_PRIMASK();

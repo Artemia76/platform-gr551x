@@ -86,6 +86,29 @@ void gr551x_boot_step(uint8_t id);
 #define GR551X_STEP_BLE_READY  0x47
 #define GR551X_STEP_BLE_ERR    0x50   /* + code d'erreur de ble_stack_init (4 bits) */
 
+/* Arrêt véritable : veille ultra-profonde (ni horloge ni RAM conservées), réveil = redémarrage complet.
+ * Sources de réveil : une broche AON (niveau) et/ou le comparateur MSIO (tension > seuil, ex. câble de
+ * charge). Le BLE est arrêté et variantPowerOff(cfg) est appelé juste avant (chien de garde, drapeau). */
+typedef struct {
+  int8_t   wake_aon_pin;     /* broche AON 0..5 qui réveille, -1 : aucune */
+  uint8_t  wake_aon_high;    /* 1 : réveil au niveau haut, 0 : au niveau bas */
+  int8_t   wake_msio_pin;    /* entrée MSIO 0..4 du comparateur, -1 : aucune */
+  uint16_t wake_msio_mv;     /* seuil du comparateur (pas de 30 mV, ≤ 1890 mV) */
+  uint16_t batt_mv;          /* tension batterie à l'arrêt, mémorisée par la variante */
+} gr551x_wake_cfg_t;
+void gr551x_power_off(const gr551x_wake_cfg_t *cfg) __attribute__((noreturn));
+void variantPowerOff(const gr551x_wake_cfg_t *cfg);
+
+/* État laissé par le dernier arrêt (implémenté par la variante ; faux par défaut). */
+typedef struct {
+  uint16_t batt_mv;          /* tension batterie au moment de l'arrêt */
+  uint32_t calendar;         /* compteur brut du calendrier AON (32 768 Hz) à l'arrêt */
+} gr551x_off_info_t;
+bool gr551x_power_off_state(gr551x_off_info_t *info);
+void gr551x_power_off_clear(void);
+/* Compteur brut du calendrier AON (32 768 Hz, 32 bits) : continue de tourner si le domaine AON reste alimenté. */
+uint32_t gr551x_calendar_raw(void);
+
 /* Redémarrages (la variante remplace les définitions faibles, ex. drapeau DFU du bootloader). */
 void gr551x_reboot(void) __attribute__((noreturn));
 void gr551x_enter_bootloader(void) __attribute__((noreturn));

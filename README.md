@@ -65,6 +65,12 @@ framework = arduino
   function. `analogWrite()` runs at 1 kHz with 1 % resolution (0–255 is scaled to the `app_pwm` duty), keeps
   running in IDLE, and `pinMode()`/`digitalWrite()` give the pin back to GPIO. On other pins, or on a module busy
   with `tone()`, it falls back to on/off.
+- **Power off**: `gr551x_power_off(&cfg)` stops BLE, calls the variant's `variantPowerOff()` (watchdog off, state
+  saved), then enters ultra deep sleep (`pwr_mgmt_ultra_sleep`). The wake sources are an AON pin level and/or the
+  MSIO comparator (voltage above a threshold, 30 mV steps). Neither RAM nor the CPU state is kept: a wake goes
+  through the bootloader and a full start, and `gr551x_power_off_state()` tells the application it was off. On
+  the T1000-A the state lives in the boot guard sector, so wakes that do not lead to a full start are not counted
+  as failed boots.
 - **Pins**: 0–31 GPIO, `0x20 + n` AON n, `0x30 + n` MSIO n (the numbering used by Seeed's firmware).
 - **BLE**: the ROM stack is started before `setup()`. Libraries subscribe with `gr551x_ble_add_handler()` and
   add their GATT services from `gr551x_ble_on_ready()`.
