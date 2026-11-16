@@ -386,7 +386,10 @@ def twin_gate(a):
                'ou T1000_TWIN_PYTHON=…)')
     print(f'Validation de {os.path.basename(elf)} par le jumeau numérique ({sim})…', flush=True)
     t0 = time.time()
-    r = subprocess.run([py, '-m', 'pytest', '-q', '-p', 'no:cacheprovider', os.path.join(sim, 'tests'),
+    par = []
+    if subprocess.run([py, '-c', 'import xdist'], capture_output=True).returncode == 0:
+        par = ['-n', 'auto', '--dist', 'loadfile']           # pytest-xdist : tests répartis sur les cœurs
+    r = subprocess.run([py, '-m', 'pytest', '-q', '-p', 'no:cacheprovider', *par, os.path.join(sim, 'tests'),
                         '--firmware', os.path.abspath(elf)], cwd=sim)
     if r.returncode != 0:
         refuse(f'le firmware échoue aux tests du jumeau (code {r.returncode})')
