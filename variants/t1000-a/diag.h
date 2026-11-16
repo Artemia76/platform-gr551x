@@ -20,6 +20,7 @@ void diag_begin(void);                /* efface le fil d'Ariane et la faute (dé
 void diag_step(uint8_t id);           /* note qu'une étape est atteinte */
 void diag_report(void (*out)(const char *fmt, ...));
 int  diag_last_reset_wdt(void);       /* 1 si le dernier redémarrage vient du chien de garde AON */
+void diag_wdt_install(void);          /* préalerte du chien de garde → PC/LR du code bloqué en Flash */
 
 #ifdef __cplusplus
 }

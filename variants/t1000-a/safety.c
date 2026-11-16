@@ -1,4 +1,5 @@
 #include "safety.h"
+#include "diag.h"
 #include "t1000a_board.h"
 #include "hal_flash.h"
 #include "app_aon_wdt.h"
@@ -106,6 +107,7 @@ void safety_boot(void)
     s_wdt.init.alarm_counter = 0x1F;
     if (app_aon_wdt_init(&s_wdt, NULL) == APP_DRV_SUCCESS) {
         s_wdt_on = 1;
+        diag_wdt_install();
     }
 }
 
