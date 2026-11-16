@@ -566,7 +566,8 @@ async def at_session(name, cmds, timeout):
 
 async def enter_dfu(name, timeout):
     """Fait passer l'appareil en bootloader DFU, quel que soit le firmware en place :
-    firmware Seeed (UART transparent ISSC) -> AT+DFU_ENTER ; nos firmwares (console GUS) -> 'dfu'.
+    firmware Seeed (UART transparent ISSC) -> AT+DFU_ENTER ; nos firmwares debug (console GUS) -> 'dfu'.
+    Une release MeshCore n'a pas de console : seul le maintien du bouton 6 s la fait passer en DFU.
     Si un bootloader DFU est déjà visible (flash précédent interrompu), retourne None : rien à faire."""
     c, adv = await connect(name, timeout, services=DFU_SERVICES)
     address = c.address
@@ -584,7 +585,9 @@ async def enter_dfu(name, timeout):
             await c.start_notify(GUS_TX, lambda _h, d: print(d.decode(errors='replace'), end='', flush=True))
             await c.write_gatt_char(GUS_RX, b'dfu\r\n', response=False)
         else:
-            sys.exit('aucun canal connu pour demander le DFU sur cet appareil')
+            sys.exit('aucun canal connu pour demander le DFU sur cet appareil. Firmware MeshCore release (sans '
+                     'console) : maintenez le bouton 6 s (LED fixe 1 s), puis relancez sans --enter-dfu, avec '
+                     '--name SENSECAP_GR_DFU.')
         await asyncio.sleep(2.5)
     finally:
         with contextlib.suppress(Exception):
