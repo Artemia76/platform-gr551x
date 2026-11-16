@@ -57,6 +57,7 @@ void gr551x_idle_request(void);
 /* Empêche la veille légère pendant `ms` millisecondes (prolonge, ne raccourcit jamais). Sert aux entrées
  * lues par scrutation (bouton) : un appui bref passerait inaperçu pendant une seconde de sommeil. */
 void gr551x_stay_awake(uint32_t ms);
+void gr551x_wake_in(uint32_t ms);   /* réveille la boucle dans ms millisecondes (sans la tenir éveillée) */
 
 /* Statistiques d'énergie : durées en ticks de 32 768 Hz depuis le démarrage ou le dernier
  * gr551x_power_stats_reset(). Servent à estimer la consommation (temps passé dans chaque état). */

@@ -39,6 +39,26 @@ static void tick_cb(void *ctx)
   gr551x_wake_events++;
 }
 
+/* Réveil ponctuel demandé par l'application (gr551x_wake_in) : la boucle tourne à l'heure dite au lieu
+ * d'attendre le minuteur d'une seconde ou une interruption (ex. éteindre une LED au bout de 20 ms). */
+static app_timer_id_t s_wake;
+static bool s_wake_created;
+static void wake_cb(void *ctx)
+{
+  (void)ctx;
+  gr551x_wake_events++;
+}
+
+extern "C" void gr551x_wake_in(uint32_t ms)
+{
+  if (!s_wake_created) {
+    if (app_timer_create(&s_wake, ATIMER_ONE_SHOT, wake_cb) != SDK_SUCCESS) return;
+    s_wake_created = true;
+  }
+  app_timer_stop(s_wake);
+  app_timer_start(s_wake, ms ? ms : 1, NULL);
+}
+
 static volatile bool s_idle_req;
 extern "C" void gr551x_idle_request(void) { s_idle_req = true; }
 
