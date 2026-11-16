@@ -12,7 +12,7 @@
     "type": "git",
     "url": "https://github.com/Artemia76/platform-gr551x.git"
   },
-  "version": "0.1.0",
+  "version": "0.2.0",
   "frameworks": {
     "arduino": {
       "package": "framework-gr551x-sdk",

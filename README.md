@@ -12,7 +12,7 @@ Only the subset of the Arduino API that MeshCore needs is implemented. See `CHAN
 
 ```ini
 [env:t1000-a]
-platform = https://github.com/Artemia76/platform-gr551x.git#v0.1.0
+platform = https://github.com/Artemia76/platform-gr551x.git#v0.2.0
 board = t1000-a
 framework = arduino
 ```
@@ -33,12 +33,13 @@ framework = arduino
 | Path | Content |
 |---|---|
 | `builder/` | SCons scripts: compile, link, DFU image, upload |
-| `cores/gr551x/` | Arduino core: `main()`, pins, interrupts, time, `Serial` (debug sink), BLE event dispatch |
+| `cores/gr551x/` | Arduino core: `main()`, pins, interrupts, time, `Serial` (debug sink), BLE event dispatch, ADC (`adc.cpp`), PWM (`tone.cpp`), power statistics and power off |
 | `cores/gr551x/api/` | [ArduinoCore-API](https://github.com/arduino/ArduinoCore-API) 1.5.2 (+ `Print::printf`) |
 | `variants/t1000-a/` | Pin map, SDK `custom_config.h`, linker script, boot safety and fault recorder |
 | `libraries/SPI` | SPI master (`app_spi`) |
+| `libraries/Wire` | Placeholder I2C: no transaction, every address answers NACK (lets bus-probing libraries build) |
 | `libraries/BleConsole` | Text console over BLE (Goodix UART service) with `dfu` / `reboot` commands |
-| `tools/` | `mkimage.py` (DFU image), `t1000_ble.py` (BLE flasher), `update-arduinocore-api.sh` (refresh `cores/gr551x/api`) |
+| `tools/` | `mkimage.py` (DFU image), `t1000_ble.py` (BLE flasher and console), `check_handlers.py` (link-order guard for exception handlers), `update-arduinocore-api.sh` (refresh `cores/gr551x/api`) |
 | `patches/arduinocore-api/` | Our changes to ArduinoCore-API, re-applied on each update, and the vendored version |
 | `examples/blink` | LED + BLE console |
 
@@ -61,6 +62,9 @@ framework = arduino
   spent in IDLE, with a BLE connection open and advertising (32 kHz ticks), the number of sleeps, the sleeps refused
   (interrupt during the pass, or `gr551x_stay_awake()` / tone), wake-up interrupts and `loop()` passes. Meant to
   estimate the power budget from the time spent in each state.
+- **Timed wake**: `gr551x_wake_in(ms)` wakes the loop once after `ms` milliseconds without keeping it awake (for
+  periodic work that has no interrupt of its own).
+- **ADC**: `analogReadMilliVolts()` reads the MSIO pins; `analogRead()` is still a stub that returns 0.
 - **PWM**: `tone()` and `analogWrite()` use the PWM0/PWM1 modules, one pin per module, on the pins that have a PWM
   function. `analogWrite()` runs at 1 kHz with 1 % resolution (0–255 is scaled to the `app_pwm` duty), keeps
   running in IDLE, and `pinMode()`/`digitalWrite()` give the pin back to GPIO. On other pins, or on a module busy
@@ -92,7 +96,8 @@ bootloader:
 
 - 3 consecutive short boots (crash or watchdog before 2 min of uptime or a BLE connection) → DFU;
 - button held 6 s → DFU;
-- 8 s AON watchdog, refreshed by `loop()` and the core's waits.
+- 8 s AON watchdog, refreshed by `loop()` and the core's waits. With `diag_wdt_install()`, its pre-alert
+  interrupt records the PC/LR of the stuck code in the diagnostics sector before the reset (`diag_report()`).
 - Last resort (hardware): plug the charging cable while holding the button.
 
 ## Licenses
