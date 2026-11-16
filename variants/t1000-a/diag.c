@@ -75,7 +75,7 @@ void diag_report(void (*out)(const char *fmt, ...))
     uint32_t f[8];
     uint8_t fm[4];
 
-    out("dernier redemarrage : %s\r\n", s_reset_wdt ? "CHIEN DE GARDE" : "normal/autre");
+    out("drapeau chien de garde au demarrage : %s (efface par le bootloader Seeed : peu fiable)\r\n", s_reset_wdt ? "oui" : "non");
     hal_flash_read(FLASH_DIAG_ADDR + OFF_STEPS, steps, sizeof(steps));
     out("etapes :");
     for (uint32_t i = 0; i < MAX_STEPS && steps[i] != 0xFF; i++) out(" %u", steps[i]);
@@ -107,15 +107,15 @@ void diag_wdt_capture(uint32_t sp)
     if (done) return;
     done = 1;
     const uint32_t *frame = (const uint32_t *)sp;   /* r0 r1 r2 r3 r12 lr pc xpsr */
-    uint32_t rec[6];
-    rec[0] = frame[6];
-    rec[1] = frame[5];
-    rec[2] = frame[7];
-    rec[3] = sp + 32u;
-    rec[4] = 0;                                      /* réservé */
-    rec[5] = frame[7] & 0x1FFu;                      /* interruption en cours au moment du blocage (0 = code normal) */
-    hal_flash_write(FLASH_DIAG_ADDR + OFF_WDOG, s_wmagic, sizeof(s_wmagic));
-    hal_flash_write(FLASH_DIAG_ADDR + OFF_WDOG + 4, (const uint8_t *)rec, sizeof(rec));
+    uint32_t rec[7];                                 /* une seule écriture : ≈ 1 ms avant le redémarrage */
+    memcpy(&rec[0], s_wmagic, 4);
+    rec[1] = frame[6];
+    rec[2] = frame[5];
+    rec[3] = frame[7];
+    rec[4] = sp + 32u;
+    rec[5] = 0;                                      /* réservé */
+    rec[6] = frame[7] & 0x1FFu;                      /* interruption en cours au moment du blocage (0 = code normal) */
+    hal_flash_write(FLASH_DIAG_ADDR + OFF_WDOG, (const uint8_t *)rec, sizeof(rec));
 }
 
 __attribute__((naked)) void diag_wdt_irq(void)
