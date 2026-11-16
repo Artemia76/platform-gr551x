@@ -20,7 +20,8 @@ Usage : mkimage.py brut.bin sortie_dfu.bin [--load 0x0101B000] [--comment Tracke
 import argparse, struct, sys
 
 PATTERN = 0x4744
-APP_LIMIT = 0x010E2000          # secteurs réservés au-delà : diag 0x010E2000, garde 0x010E3000, DFU 0x010E4000
+RESERVED = 0x010E2000           # secteurs réservés au-delà : diag 0x010E2000, garde 0x010E3000, DFU 0x010E4000
+APP_LIMIT = 0x010C2000          # T1000-A : système de fichiers (LittleFS) au-delà (build.app_limit de la carte)
 RAM_RANGES = [(0x00800000, 0x00840000), (0x30000000, 0x30040000)]
 
 
@@ -54,8 +55,8 @@ def main():
         d += b'\xff'
     sp, reset = struct.unpack('<II', d[:8])
     errors = []
-    if a.limit > APP_LIMIT:
-        errors.append(f'limite {a.limit:#x} au-delà des secteurs réservés ({APP_LIMIT:#x})')
+    if a.limit > RESERVED:
+        errors.append(f'limite {a.limit:#x} au-delà des secteurs réservés ({RESERVED:#x})')
     if not any(lo < sp <= hi for lo, hi in RAM_RANGES):
         errors.append(f'pile initiale {sp:#x} hors RAM')
     if not (reset & 1) or not (a.load <= (reset & ~1) < a.load + len(d)):

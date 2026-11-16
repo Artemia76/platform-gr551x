@@ -74,6 +74,8 @@ target_size = env.AddPlatformTarget("size", target_elf, env.VerboseAction("$SIZE
 
 # ---------------------------------------------------------------- téléversement BLE
 upload_cmd = '"$PYTHONEXE" "%s" flash "$SOURCE"' % join(TOOLS, "t1000_ble.py")
+if board.get("build.app_limit", ""):
+    upload_cmd += " --limit %s" % board.get("build.app_limit")
 enter = env.GetProjectOption("custom_upload_enter_dfu", "")
 if enter:
     upload_cmd += ' --enter-dfu "%s"' % enter

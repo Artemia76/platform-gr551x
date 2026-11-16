@@ -13,10 +13,9 @@ Sous-commandes :
 
 Exemples :
   t1000_ble.py gatt -t 120       puis appui long sur le bouton du T1000-A
-  t1000_ble.py flash firmware/hello/build/t1000a_hello_dfu.bin
+  t1000_ble.py flash .pio/build/t1000a_companion_radio_ble/firmware_dfu.bin --enter-dfu FD:28:17:38:7A:8F
 """
-import re
-import argparse, asyncio, os, struct, subprocess, sys, time
+import argparse, asyncio, contextlib, os, re, struct, subprocess, sys, time
 from bleak import BleakClient, BleakScanner
 from bleak.exc import BleakError
 
@@ -37,6 +36,8 @@ SEEED_TX  = '49535343-1e4d-4bd9-ba61-23c647249616'   # notifications appareil ->
 SEEED_RX  = '49535343-8841-43f4-a8d4-ecbe34729bb3'   # écriture PC -> appareil
 
 APP_LOAD_ADDR = 0x0101B000      # seule adresse acceptée pour une application T1000-A
+APP_LIMIT = 0x010C2000          # fin de la zone applicative : système de fichiers (LittleFS) au-delà
+                                # (boards/t1000-a.json, build.app_limit)
 
 
 def scanner(cb):
@@ -81,9 +82,6 @@ async def wait_for(name_prefix, timeout, address=None, services=None, exclude=()
             return await asyncio.wait_for(found, timeout)
         except asyncio.TimeoutError:
             raise NotFound('introuvable (appareil hors de portée, éteint, ou connecté à un téléphone ?)')
-
-
-import contextlib
 
 
 @contextlib.asynccontextmanager
@@ -290,7 +288,7 @@ async def fast_flash(c, a, img, tail):
     load = struct.unpack('<I', tail[12:16])[0]
     end = load + len(img)
     print(f'zone à écrire : {load:#x}..{end:#x}')
-    if load != APP_LOAD_ADDR or end > 0x010E2000:
+    if load != APP_LOAD_ADDR or end > a.limit:
         sys.exit('zone hors de l\'espace applicatif autorisé : abandon')
     if a.dry_run:
         print('--dry-run : arrêt avant toute commande modifiante (le bootloader repart seul après 3 min)')
@@ -351,8 +349,7 @@ def find_twin():
     """Dossier du jumeau numérique (dépôt t1000a-twin) : $T1000_TWIN_DIR, ou son sous-module emulator/twin du
     dépôt T1000A quand la plateforme y est montée en platform/gr551x."""
     here = os.path.dirname(os.path.realpath(__file__))  # realpath : appel par lien symbolique
-    for d in (os.environ.get('T1000_TWIN_DIR'), os.path.join(here, 'sim'),
-              os.path.join(here, '..', '..', '..', 'emulator', 'twin')):
+    for d in (os.environ.get('T1000_TWIN_DIR'), os.path.join(here, '..', '..', '..', 'emulator', 'twin')):
         if d and os.path.exists(os.path.join(d, 'tests', 'conftest.py')):
             return os.path.abspath(d)
     return None
@@ -404,6 +401,8 @@ async def cmd_flash(a):
         sys.exit('image invalide (passer par tools/mkimage.py)')
     if load != APP_LOAD_ADDR or run != APP_LOAD_ADDR:
         sys.exit(f'adresse de chargement {load:#x} ≠ {APP_LOAD_ADDR:#x} : refus (protège le bootloader)')
+    if load + len(img) > a.limit:
+        sys.exit(f'image trop grande : fin {load + len(img):#x} > {a.limit:#x} (écraserait le système de fichiers)')
     img_info = tail[:40]          # dfu_image_info_t : pattern, version, boot_info (24), comments (12)
     print(f'image : {len(img)} octets, commentaire « {tail[28:40].split(bytes(1))[0].decode()} »')
     if not a.dry_run:
@@ -449,12 +448,13 @@ async def cmd_flash(a):
             continue
         if done is False:          # pas un bootloader : on cherche encore
             continue
-        if done is not None and app_addr and not a.dry_run:
+        if app_addr and not a.dry_run:
             await wait_back(app_addr)
         return
     sys.exit(f'échec après {a.retries} tentatives. Le bootloader attend encore : relancer\n'
              f'  t1000_ble.py flash {a.file}\n'
-             'ou, s\'il a disparu : maintenir le bouton en rebranchant le câble (voir docs/materiel-t1000a.md).')
+             'ou, s\'il a disparu : maintenir le bouton en rebranchant le câble (README de la plateforme, '
+             '« T1000-A specifics »).')
 
 
 async def wait_back(app_addr, timeout=40):
@@ -520,7 +520,7 @@ async def flash_once(c, a, img, tail, img_info):
 
         if a.dry_run:
             print('--dry-run : arrêt avant toute écriture (le bootloader repart seul sur l\'appli après 3 min)')
-            return
+            return True
         info40 = bytearray(img_info)
         struct.pack_into('<I', info40, 12, save_addr)       # boot_info.load_addr
         await d.request(d.PROGRAM_START, b'\x00' + bytes(info40), timeout=20)
@@ -544,7 +544,6 @@ async def flash_once(c, a, img, tail, img_info):
 
 def bluez_forget(address):
     """Retire l'appareil du cache BlueZ (nom, services) pour qu'il soit redécouvert tel quel."""
-    import subprocess
     subprocess.run(['bluetoothctl', 'remove', address], capture_output=True, timeout=10)
 
 
@@ -560,10 +559,8 @@ async def at_session(name, cmds, timeout):
                 await c.write_gatt_char(SEEED_RX, data[i:i + 20], response=True)
             await asyncio.sleep(2.5)
     finally:
-        try:
+        with contextlib.suppress(Exception):     # échoue normalement après AT+DFU_ENTER (redémarrage)
             await c.disconnect()
-        except Exception:
-            pass                      # normal après AT+DFU_ENTER (redémarrage)
     return address
 
 
@@ -667,10 +664,12 @@ def main():
     p.add_argument('--retries', type=int, default=3, help='tentatives en cas de coupure BLE (défaut 3)')
     p.add_argument('--skip-twin', action='store_true',
                    help='flasher sans la validation préalable par le jumeau numérique (déconseillé)')
+    p.add_argument('--limit', type=lambda s: int(s, 0), default=APP_LIMIT,
+                   help=f'première adresse interdite (défaut {APP_LIMIT:#x}, début du système de fichiers)')
     p.add_argument('--enter-dfu', metavar='NOM', help='passer d\'abord l\'appareil NOM en DFU (AT+DFU_ENTER pour Seeed, « dfu » pour nos firmwares)')
     p = sub.add_parser('at'); p.add_argument('cmds', nargs='+'); p.add_argument('--name', default='T1000')
     p.add_argument('-t', type=float, default=180)
-    p = sub.add_parser('console'); p.add_argument('--name', default='T1000A-Test'); p.add_argument('-t', type=float, default=60)
+    p = sub.add_parser('console'); p.add_argument('--name', default='MeshCore-'); p.add_argument('-t', type=float, default=60)
     p.add_argument('--cmd', dest='cmd_lines', action='append', metavar='LIGNE',
                    help='envoyer cette commande puis quitter (répétable, ex. --cmd power --cmd "power log")')
     p.add_argument('--quiet', type=float, default=2.0, help='avec --cmd : secondes de silence qui terminent une réponse')
