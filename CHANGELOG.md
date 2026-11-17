@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.3.0
+
+- **Scheduler probe**: `gr551x_sched_stats_get()` / `gr551x_sched_stats_reset()` (macro `GR551X_SCHED_STATS`):
+  time spent in `pwr_mgmt_schedule()` (ROM) in active and idle mode, how often an application interrupt arrived
+  meanwhile, and time in `loop()` (average, max, histogram from 1 ms to 1 s). Costs two reads of the 32 kHz
+  calendar per loop pass (≈ 3 µs). Measured on the T1000-A (2026-11-17): in IDLE the ROM returns at every BLE
+  radio event (≈ 16/s while advertising, sleeps ≤ 159 ms); in active mode it returns in ≈ 10 µs. These
+  measurements calibrate the digital twin's sleep and timing model.
+
 ## 0.2.0
 
 Everything the T1000-A MeshCore firmware gained after 0.1.0: power measurement, real power off, PWM LED.
