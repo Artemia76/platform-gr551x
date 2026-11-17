@@ -15,4 +15,5 @@ void gr551x_pwm_pin_release(pin_size_t pin);  /* tone.cpp : rend une broche anal
 void gr551x_pstat_loop(void);
 void gr551x_pstat_idle(uint64_t ticks);
 void gr551x_pstat_refused(bool awake);
+void gr551x_sched_note(int which, uint64_t ticks, bool event);   /* 0 actif, 1 veille, 2 loop() */
 void gr551x_pstat_ble(const ble_evt_t *evt);

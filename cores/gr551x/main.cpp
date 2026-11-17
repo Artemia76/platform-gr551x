@@ -102,7 +102,9 @@ extern "C" int main(void)
   bool first = true;
   for (;;) {
     uint32_t ev = gr551x_wake_events;
+    uint64_t tl = gr551x_ticks32k();
     loop();
+    gr551x_sched_note(2, gr551x_ticks32k() - tl, false);
     gr551x_pstat_loop();
     if (first) { first = false; gr551x_boot_step(GR551X_STEP_LOOP); }
     gr551x_service();
@@ -112,15 +114,21 @@ extern "C" int main(void)
       bool awake = !event && must_stay_awake();
       if (!event && !awake) {           /* rien n'est arrivé pendant le tour : on peut dormir */
         uint64_t t0 = gr551x_ticks32k();
+        uint32_t e0 = gr551x_wake_events;
         pwr_mgmt_mode_set(PMR_MGMT_IDLE_MODE);
         pwr_mgmt_schedule();
         pwr_mgmt_mode_set(PMR_MGMT_ACTIVE_MODE);
-        gr551x_pstat_idle(gr551x_ticks32k() - t0);
+        uint64_t dt = gr551x_ticks32k() - t0;
+        gr551x_pstat_idle(dt);
+        gr551x_sched_note(1, dt, gr551x_wake_events != e0);
         continue;
       }
       gr551x_pstat_refused(awake);
     }
+    uint64_t t0 = gr551x_ticks32k();
+    uint32_t e0 = gr551x_wake_events;
     pwr_mgmt_schedule();
+    gr551x_sched_note(0, gr551x_ticks32k() - t0, gr551x_wake_events != e0);
   }
   return 0;
 }
