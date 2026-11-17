@@ -90,3 +90,31 @@ extern "C" void gr551x_power_stats_reset(void)
   s_entries = s_ref_event = s_ref_awake = s_loops = 0;
   s_wake0 = gr551x_wake_events;
 }
+
+/* ------------------------------------------------------------------ sonde de l'ordonnanceur */
+static gr551x_sched_stats_t s_sched;
+
+void gr551x_sched_note(int which, uint64_t ticks, bool event)
+{
+  gr551x_sched_bucket_t *b = which == 0 ? &s_sched.active : which == 1 ? &s_sched.idle : &s_sched.loop;
+  Lock l;
+  b->n++;
+  if (event) b->with_event++;
+  b->ticks += ticks;
+  if (ticks > b->max_ticks) b->max_ticks = (uint32_t)ticks;
+  /* 1 ms ≈ 33 ticks, 10 ms ≈ 328, 100 ms ≈ 3277, 1 s = 32768 */
+  int k = ticks < 33 ? 0 : ticks < 328 ? 1 : ticks < 3277 ? 2 : ticks < 32768 ? 3 : 4;
+  b->hist[k]++;
+}
+
+extern "C" void gr551x_sched_stats_get(gr551x_sched_stats_t *s)
+{
+  Lock l;
+  *s = s_sched;
+}
+
+extern "C" void gr551x_sched_stats_reset(void)
+{
+  Lock l;
+  memset(&s_sched, 0, sizeof(s_sched));
+}

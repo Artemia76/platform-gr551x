@@ -76,6 +76,25 @@ typedef struct {
 void gr551x_power_stats_get(gr551x_power_stats_t *s);
 void gr551x_power_stats_reset(void);
 
+/* Sonde de l'ordonnanceur : durée des appels à pwr_mgmt_schedule() (code en ROM) en fin de tour de boucle,
+ * selon le mode (actif : le CPU ne dort pas ; veille : IDLE/WFI), et durée de loop() elle-même. Ticks de
+ * 32 768 Hz. Histogramme : < 1 ms, < 10 ms, < 100 ms, < 1 s, >= 1 s. Sert à caler le jumeau numérique. */
+#define GR551X_SCHED_STATS 1           /* présence de la sonde (la variante peut tester) */
+typedef struct {
+  uint32_t n;                    /* appels */
+  uint32_t with_event;           /* appels pendant lesquels une interruption utile est arrivée */
+  uint64_t ticks;                /* durée cumulée */
+  uint32_t max_ticks;
+  uint32_t hist[5];
+} gr551x_sched_bucket_t;
+typedef struct {
+  gr551x_sched_bucket_t active;  /* pwr_mgmt_schedule() en mode actif (aucune veille demandée ou refusée) */
+  gr551x_sched_bucket_t idle;    /* pwr_mgmt_schedule() en mode veille */
+  gr551x_sched_bucket_t loop;    /* loop() de l'application */
+} gr551x_sched_stats_t;
+void gr551x_sched_stats_get(gr551x_sched_stats_t *s);
+void gr551x_sched_stats_reset(void);
+
 /* Étape de démarrage franchie (la variante peut l'enregistrer de façon persistante). */
 void gr551x_boot_step(uint8_t id);
 #define GR551X_STEP_CTORS      0x41
