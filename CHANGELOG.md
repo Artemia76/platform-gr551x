@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.1
+
 - **T1000-A pins**: `PIN_WIRE_SDA` = GPIO8 and `PIN_WIRE_SCL` = GPIO9 (they were swapped), as Seeed's software I2C
   drives them and as checked on the board by reading the QMA6100P accelerometer (2026-11-20).
 
