@@ -45,9 +45,10 @@
 #define PIN_BATTERY_EN      14
 #define BATTERY_DIVIDER     2
 
-/* I2C (capteurs) */
-#define PIN_WIRE_SCL        8
-#define PIN_WIRE_SDA        9
+/* I2C (accéléromètre QMA6100P, alimenté par GPIO7 à 1) : I2C logiciel dans le firmware Seeed (0x01038490…),
+ * GPIO8 change de sens pour l'ACK et les lectures (SDA), GPIO9 toujours piloté (SCL). Vérifié sur le boîtier. */
+#define PIN_WIRE_SDA        8
+#define PIN_WIRE_SCL        9
 
 /* Buzzer : PWM0 sur GPIO2, alimentation sur GPIO15 */
 #define PIN_BUZZER          2

@@ -1,7 +1,7 @@
 /*
  * I2C pour GR551x — version provisoire : aucune transaction n'est émise, toute adresse répond NACK.
  * Permet de compiler les bibliothèques qui sondent le bus (découverte d'horloges RTC de MeshCore).
- * TODO : pilote app_i2c (capteurs du T1000-A sur SCL=GPIO8 / SDA=GPIO9).
+ * TODO : pilote app_i2c (accéléromètre du T1000-A sur SDA=GPIO8 / SCL=GPIO9, PIN_WIRE_*).
  */
 #pragma once
 
