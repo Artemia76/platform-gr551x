@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **PWM shared clock**: PWM0 and PWM1 share one clock (`PWM_HCLK`), and `app_pwm_deinit()` gates it even while
+  the other module is running. Releasing one module (end of a `tone()`, or `pinMode()` on an `analogWrite()` pin)
+  now restores the clock for the other. On the T1000-A, the end of the buzzer start-up tune left the charge LED
+  dark until the cable was plugged in again, and any buzzer sound did the same (found 2026-11-21).
+
 ## 0.3.1
 
 - **T1000-A pins**: `PIN_WIRE_SDA` = GPIO8 and `PIN_WIRE_SCL` = GPIO9 (they were swapped), as Seeed's software I2C
