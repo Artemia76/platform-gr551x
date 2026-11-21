@@ -14,6 +14,7 @@
 #include "app_pwm.h"
 #include "gr55xx_ll_aon_gpio.h"
 #include "gr55xx_ll_pwm.h"
+#include "gr55xx_ll_cgc.h"
 
 struct PwmPin {
   uint8_t pin;          /* numérotation Arduino du core */
@@ -54,6 +55,13 @@ static void release(uint8_t id)
   if (s.pin < 0) return;
   app_pwm_stop((app_pwm_id_t)id);
   app_pwm_deinit((app_pwm_id_t)id);
+  /* PWM0 et PWM1 partagent une seule horloge (MCU_SUB_CG : PWM_HCLK, bit 3). app_pwm_deinit() la coupe (forcée et
+     en WFI) même si l'autre module tourne encore : vu sur T1000-A, la fin de la mélodie de démarrage du buzzer
+     (PWM0) figeait la LED de charge (PWM1), noire jusqu'au rebranchement. On la rétablit pour l'autre module. */
+  if (s_tone[id ^ 1].pin >= 0) {
+    ll_cgc_set_force_off_hclk_0(ll_cgc_get_force_off_hclk_0() & ~LL_CGC_FRC_PWM_HCLK);
+    ll_cgc_set_wfi_off_hclk_0(ll_cgc_get_wfi_off_hclk_0() & ~LL_CGC_WFI_PWM_HCLK);
+  }
   pin_size_t pin = (pin_size_t)s.pin;
   s.pin = -1;
   s.stop_at = 0;
