@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.0.0-rc.1
+
+Release candidate for 1.0.0: every T1000-A function used by the MeshCore companion (LoRa, BLE, GNSS, sensors,
+buzzer, LED, button, power off, BLE and button DFU) works on the board and in the digital twin. 1.0.0 will follow
+after a period of daily use with no new defect, without code changes.
+
 - **PWM shared clock**: PWM0 and PWM1 share one clock (`PWM_HCLK`), and `app_pwm_deinit()` gates it even while
   the other module is running. Releasing one module (end of a `tone()`, or `pinMode()` on an `analogWrite()` pin)
   now restores the clock for the other. On the T1000-A, the end of the buzzer start-up tune left the charge LED
