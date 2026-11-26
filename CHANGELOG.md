@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.0.0-rc.2
+
+Same platform code as rc.1. New candidate because the MeshCore T1000-A companion built on it changed: it now
+switches off by itself on a low battery (below 3300 mV for three readings a minute apart, power on refused below
+3400 mV) and reports its state of charge with the curve of Seeed's firmware (found 2026-11-26: the app's straight
+line from 3.0 to 4.2 V showed about 40 % with about 14 % left). The week of daily use before 1.0.0 starts again.
+
 ## 1.0.0-rc.1
 
 Release candidate for 1.0.0: every T1000-A function used by the MeshCore companion (LoRa, BLE, GNSS, sensors,
